@@ -18,5 +18,5 @@ jobs:
       - name: Trigger Parent Repository Workflow
         run: |
           curl -X POST -H "Authorization: token ${{ secrets.PAT }}" \
-          -d '{"event_type": "update-submodules"}' \
+          -d '{"event_type": "update_submodules"}' \
           https://api.github.com/repos/P72024/P7Project/dispatches
