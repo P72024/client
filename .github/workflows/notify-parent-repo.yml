@@ -7,6 +7,9 @@ on:
   pull_request:
     types: [closed]
 
+permissions:
+  contents: write
+
 jobs:
   notify-parent:
     runs-on: ubuntu-latest
