@@ -1,3 +1,1 @@
 # Hello Client World
-
-HELLO
