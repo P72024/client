@@ -52,52 +52,86 @@
     <script>
         let localStream;
         let peerConnection;
-
         let isRecording = false;
+        let socket;
 
-        function toggleRecording() {
+        async function toggleRecording() {
             const button = document.getElementById('recordButton');
-            if (isRecording) {
-                button.textContent = "Record";
-                button.classList.remove('stop');
-                startRecording();
-            } else {
+            if (!isRecording) {
                 button.textContent = "Stop Recording";
                 button.classList.add('stop');
+                await startRecording();
+            } else {
+                button.textContent = "Record";
+                button.classList.remove('stop');
+                stopRecording();
             }
             isRecording = !isRecording;
         }
+
         async function startRecording() {
-            // Get the audio stream from the microphone
-            localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+            socket = new WebSocket('ws://localhost:5000/webrtc');
 
-            // Set up WebRTC peer connection
-            const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-            peerConnection = new RTCPeerConnection(configuration);
+            socket.onopen = async () => {
+                console.log('WebSocket connection established');
+                
+                // Get the audio stream from the microphone
+                localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
 
-            // Add audio track to the peer connection
-            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+                // Set up WebRTC peer connection
+                const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+                peerConnection = new RTCPeerConnection(configuration);
 
-            // Exchange ICE candidates
-            peerConnection.onicecandidate = (event) => {
-                if (event.candidate) {
-                sendToBackend({ 'candidate': event.candidate });
+                // Add audio track to the peer connection
+                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+                // Exchange ICE candidates
+                peerConnection.onicecandidate = (event) => {
+                    if (event.candidate) {
+                        socket.send(JSON.stringify({
+                            'candidate': {
+                                'candidate': event.candidate.candidate,
+                                'sdpMid': event.candidate.sdpMid,
+                                'sdpMLineIndex': event.candidate.sdpMLineIndex
+                            }
+                        }));
+                    }
+                };
+
+                // Create an offer to start the WebRTC connection
+                const offer = await peerConnection.createOffer();
+                await peerConnection.setLocalDescription(offer);
+
+                // Send the offer to the backend to set up the connection
+                socket.send(JSON.stringify({ 'offer': peerConnection.localDescription }));
+            };
+
+            socket.onmessage = async (event) => {
+                const message = JSON.parse(event.data);
+                if (message.type === 'answer') {
+                    const remoteDesc = new RTCSessionDescription({
+                        type: 'answer',
+                        sdp: message.answer  // Ensure you access the correct 'sdp' field
+                    });
+                    await peerConnection.setRemoteDescription(remoteDesc);
                 }
             };
 
-            // Create an offer to start the WebRTC connection
-            const offer = await peerConnection.createOffer();
-            await peerConnection.setLocalDescription(offer);
-
-            // Send the offer to the backend to set up the connection
-            sendToBackend({ 'offer': peerConnection.localDescription });
-        }
-        function sendToBackend(message) {
-            // Example of sending data to the backend via WebSocket
-            const socket = new WebSocket('ws://localhost:5000/webrtc');
-            socket.onopen = () => {
-                socket.send(JSON.stringify(message));
+            socket.onerror = (error) => {
+                console.error('WebSocket error:', error);
             };
+        }
+
+        function stopRecording() {
+            if (localStream) {
+                localStream.getTracks().forEach(track => track.stop());
+            }
+            if (peerConnection) {
+                peerConnection.close();
+            }
+            if (socket) {
+                socket.close();
+            }
         }
     </script>
 
