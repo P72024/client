@@ -3,136 +3,66 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Record/Stop Button</title>
+    <title>WebSocket Connection Example</title>
     <style>
         body {
             font-family: Arial, sans-serif;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            height: 100vh;
-            margin: 0;
-            background-color: #f4f4f4;
+            margin: 20px;
         }
-
-        button {
-            padding: 15px 30px;
-            font-size: 18px;
+        #status {
+            margin-top: 10px;
             font-weight: bold;
-            color: white;
-            background-color: #28a745;
-            border: none;
-            border-radius: 8px;
-            transition: background-color 0.3s, transform 0.2s;
-            box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
-            cursor: pointer;
-        }
-
-        button:hover {
-            background-color: #218838;
-        }
-
-        button:active {
-            transform: scale(0.98);
-        }
-
-        button.stop {
-            background-color: #dc3545;
-        }
-
-        button.stop:hover {
-            background-color: #c82333;
         }
     </style>
 </head>
 <body>
 
-    <button id="recordButton" onclick="toggleRecording()">Record</button>
+    <h1>WebSocket Connection Example</h1>
+    <button id="connectBtn">Connect to WebSocket</button>
+    <div id="status">Status: Disconnected</div>
+    <button id="sendMsgBtn">Send Message!</button>
 
     <script>
-        let localStream;
-        let peerConnection;
-        let isRecording = false;
+        const connectBtn = document.getElementById('connectBtn');
+        const sendMsgBtn = document.getElementById('sendMsgBtn');
+        const statusDiv = document.getElementById('status');
         let socket;
 
-        async function toggleRecording() {
-            const button = document.getElementById('recordButton');
-            if (!isRecording) {
-                button.textContent = "Stop Recording";
-                button.classList.add('stop');
-                await startRecording();
-            } else {
-                button.textContent = "Record";
-                button.classList.remove('stop');
-                stopRecording();
+        connectBtn.addEventListener('click', () => {
+            // Check if a connection is already established
+            if (socket && socket.readyState === WebSocket.OPEN) {
+                statusDiv.textContent = "Status: Already connected!";
+                return;
             }
-            isRecording = !isRecording;
-        }
 
-        async function startRecording() {
-            socket = new WebSocket('ws://localhost:5000/webrtc');
+            // WS ikke secure! brug wss
+            socket = new WebSocket('ws://localhost:8080');
 
-            socket.onopen = async () => {
-                console.log('WebSocket connection established');
-                
-                // Get the audio stream from the microphone
-                localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-
-                // Set up WebRTC peer connection
-                const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
-                peerConnection = new RTCPeerConnection(configuration);
-
-                // Add audio track to the peer connection
-                localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
-
-                // Exchange ICE candidates
-                peerConnection.onicecandidate = (event) => {
-                    if (event.candidate) {
-                        socket.send(JSON.stringify({
-                            'candidate': {
-                                'candidate': event.candidate.candidate,
-                                'sdpMid': event.candidate.sdpMid,
-                                'sdpMLineIndex': event.candidate.sdpMLineIndex
-                            }
-                        }));
-                    }
-                };
-
-                // Create an offer to start the WebRTC connection
-                const offer = await peerConnection.createOffer();
-                await peerConnection.setLocalDescription(offer);
-
-                // Send the offer to the backend to set up the connection
-                socket.send(JSON.stringify({ 'offer': peerConnection.localDescription }));
+            socket.onopen = () => {
+                statusDiv.textContent = "Status: Connected!";
             };
 
-            socket.onmessage = async (event) => {
-                const message = JSON.parse(event.data);
-                if (message.type === 'answer') {
-                    const remoteDesc = new RTCSessionDescription({
-                        type: 'answer',
-                        sdp: message.answer  // Ensure you access the correct 'sdp' field
-                    });
-                    await peerConnection.setRemoteDescription(remoteDesc);
-                }
+            socket.onclose = () => {
+                statusDiv.textContent = "Status: Disconnected!";
             };
 
             socket.onerror = (error) => {
-                console.error('WebSocket error:', error);
+                statusDiv.textContent = "Status: Error occurred!";
+                console.error("WebSocket error: ", error);
             };
+
+            socket.onmessage = (event) => {
+                console.log("Message from server: ", event.data);
+            };
+        });
+
+        connectBtn.addEventListener('click', () => {
+            if (socket && socket.readyState == WebSocket.OPEN) {
+                socket.send("Hejsa ozzy")
+            }
+            else console.log("websocket not OPEN. Or not rdy")
         }
 
-        function stopRecording() {
-            if (localStream) {
-                localStream.getTracks().forEach(track => track.stop());
-            }
-            if (peerConnection) {
-                peerConnection.close();
-            }
-            if (socket) {
-                socket.close();
-            }
-        }
     </script>
 
 </body>
