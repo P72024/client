@@ -50,6 +50,9 @@
     <button id="recordButton" onclick="toggleRecording()">Record</button>
 
     <script>
+        let localStream;
+        let peerConnection;
+
         let isRecording = false;
 
         function toggleRecording() {
@@ -57,11 +60,44 @@
             if (isRecording) {
                 button.textContent = "Record";
                 button.classList.remove('stop');
+                startRecording();
             } else {
                 button.textContent = "Stop Recording";
                 button.classList.add('stop');
             }
             isRecording = !isRecording;
+        }
+        async function startRecording() {
+            // Get the audio stream from the microphone
+            localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
+
+            // Set up WebRTC peer connection
+            const configuration = { iceServers: [{ urls: 'stun:stun.l.google.com:19302' }] };
+            peerConnection = new RTCPeerConnection(configuration);
+
+            // Add audio track to the peer connection
+            localStream.getTracks().forEach(track => peerConnection.addTrack(track, localStream));
+
+            // Exchange ICE candidates
+            peerConnection.onicecandidate = (event) => {
+                if (event.candidate) {
+                sendToBackend({ 'candidate': event.candidate });
+                }
+            };
+
+            // Create an offer to start the WebRTC connection
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+
+            // Send the offer to the backend to set up the connection
+            sendToBackend({ 'offer': peerConnection.localDescription });
+        }
+        function sendToBackend(message) {
+            // Example of sending data to the backend via WebSocket
+            const socket = new WebSocket('ws://localhost:5000/webrtc');
+            socket.onopen = () => {
+                socket.send(JSON.stringify(message));
+            };
         }
     </script>
 
