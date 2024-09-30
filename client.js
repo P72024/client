@@ -1,7 +1,6 @@
-
-
 // peer connection
 var pc = null;
+
 
 // data channel
 var dc = null, dcInterval = null;
@@ -71,10 +70,13 @@ function negotiate() {
             offer.sdp = sdpFilterCodec('audio', codec, offer.sdp);
         }
 
+        const fileName = document.getElementById('audioFileName').value;
+
         return fetch('/offer', {
             body: JSON.stringify({
                 sdp: offer.sdp,
-                type: offer.type
+                type: offer.type,
+                record_to: fileName + ".wav"
             }),
             headers: {
                 'Content-Type': 'application/json'
@@ -93,6 +95,9 @@ function negotiate() {
 
 function start() {
     document.getElementById('start').style.display = 'none';
+    
+    
+  
 
     pc = createPeerConnection();
     // Build media constraints.
@@ -132,6 +137,7 @@ function start() {
 
 function stop() {
     document.getElementById('stop').style.display = 'none';
+    document.getElementById('start').style.display = 'inline'
 
     // close data channel
     if (dc) {
