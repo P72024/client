@@ -1,7 +1,7 @@
 FROM oven/bun:latest
 
-WORKDIR /app/
+WORKDIR /app
 
 COPY . .
 
-ENTRYPOINT [ "bun", "main.ts" ]
+ENTRYPOINT [ "bun", "run", "main.ts"]

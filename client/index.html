@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>WebRTC demo</title>
+    <style>
+    button {
+        padding: 8px 16px;
+    }
+
+    pre {
+        overflow-x: hidden;
+        overflow-y: auto;
+    }
+
+    video {
+        width: 100%;
+    }
+
+
+    #media {
+        max-width: 1280px;
+    }
+    </style>
+</head>
+<body>
+
+<button id="start" onclick="start()">Start</button>
+<button id="stop" style="display: none" onclick="stop()">Stop</button>
+
+<div id="media" style="display: none">
+    <h2>Media</h2>
+
+    <audio id="audio" autoplay="true"></audio>
+</div>
+
+<br><br>
+<label for="audioFileName">File Name: </label>
+<input type="text" id="audioFileName" name="audioFileName" placeholder="Enter file name">
+<span>.wav</span>
+
+
+<script src="client.js"></script>
+</body>
+</html>
