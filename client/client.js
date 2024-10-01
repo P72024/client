@@ -72,7 +72,7 @@ function negotiate() {
 
         const fileName = document.getElementById('audioFileName').value;
 
-        return fetch('/offer', {
+        return fetch('http://127.0.0.1:3000/offer', {
             body: JSON.stringify({
                 sdp: offer.sdp,
                 type: offer.type,
