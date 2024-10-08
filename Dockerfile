@@ -4,4 +4,5 @@ WORKDIR /app
 
 COPY . .
 
+
 ENTRYPOINT [ "bun", "run", "main.ts"]
