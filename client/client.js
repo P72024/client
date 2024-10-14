@@ -20,8 +20,6 @@ const constraints = { audio: true };
 let recorder;
 
 function start() {
-    webSocket.send("HELLO");
-
     navigator.mediaDevices
         .getUserMedia(constraints)
         .then(mediaStream => {
@@ -31,9 +29,6 @@ function start() {
 
         // fires every one second and passes an BlobEvent
         recorder.ondataavailable = event => {
-            console.log(event);
-            
-
             // get the Blob from the event
             const blob = event.data;
 
