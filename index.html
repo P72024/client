@@ -1,0 +1,48 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>WebRTC Client</title>
+</head>
+<body>
+    <h1>WebRTC Client</h1>
+    <button id="connectBtn">Connect</button>
+    <script>
+        const connectBtn = document.getElementById('connectBtn');
+        let peerConnection;
+        let dataChannel;
+
+        connectBtn.addEventListener('click', async () => {
+            peerConnection = new RTCPeerConnection();
+
+            dataChannel = peerConnection.createDataChannel('audioMessage');
+            dataChannel.onopen = () => {
+                console.log('Data channel is open');
+                dataChannel.send('hello');
+            };
+
+            
+
+            const offer = await peerConnection.createOffer();
+            await peerConnection.setLocalDescription(offer);
+
+            const response = await fetch('http://127.0.0.1:3000/offer', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json'
+                },
+                body: JSON.stringify({
+                    sdp: peerConnection.localDescription.sdp,
+                    type: peerConnection.localDescription.type
+                })
+            });
+
+            const answer = await response.json();
+            await peerConnection.setRemoteDescription(new RTCSessionDescription(answer));
+
+            console.log('Connection established');
+        });
+    </script>
+</body>
+</html>
