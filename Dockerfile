@@ -4,5 +4,6 @@ WORKDIR /app
 
 COPY . .
 
+RUN bun install
 
 ENTRYPOINT [ "bun", "run", "main.ts"]
