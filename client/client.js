@@ -1,135 +1,52 @@
-// peer connection
-var pc = null;
+const webSocket = new WebSocket('ws://127.0.0.1:3000');
 
-
-// data channel
-var dc = null, dcInterval = null;
-
-function createPeerConnection() {
-    var config = {
-        sdpSemantics: 'unified-plan'
-    };
-
-    pc = new RTCPeerConnection(config);
-
-    // connect audio / video
-    pc.addEventListener('track', (evt) => {
-        if (evt.track.kind == 'audio')
-            document.getElementById('audio').srcObject = evt.streams[0];
-    });
-
-    return pc;
+webSocket.onmessage = event => {
+    console.log('Message from server:', event.data);
 }
 
-function negotiate() {
-    return pc.createOffer().then((offer) => {
-        return pc.setLocalDescription(offer);
-    }).then(() => {
-        // wait for ICE gathering to complete
-        return new Promise((resolve) => {
-            if (pc.iceGatheringState === 'complete') {
-                resolve();
-            } else {
-                function checkState() {
-                    if (pc.iceGatheringState === 'complete') {
-                        pc.removeEventListener('icegatheringstatechange', checkState);
-                        resolve();
-                    }
-                }
-                pc.addEventListener('icegatheringstatechange', checkState);
-            }
-        });
-    }).then(() => {
-        var offer = pc.localDescription;
+webSocket.onopen = () => {
+    console.log('Connected to server');
+};
 
-        const fileName = document.getElementById('audioFileName').value;
+webSocket.onclose = (event) => {
+    console.log('Disconnected from server: ', event.code, event.reason);
+};
 
-        return fetch('http://127.0.0.1:3000/offer', {
-            body: JSON.stringify({
-                sdp: offer.sdp,
-                type: offer.type,
-                record_to: fileName + ".wav"
-            }),
-            headers: {
-                'Content-Type': 'application/json'
-            },
-            method: 'POST'
-        });
-    }).then((response) => {
-        return response.json();
-    }).then((answer) => {
-        console.log(answer.sdp);
-        return pc.setRemoteDescription(answer);
-    }).catch((e) => {
-        alert(e);
-    });
+webSocket.onerror = error => {
+    console.error('Error:', error);
 }
+
+const constraints = { audio: true };
+let recorder;
 
 function start() {
-    document.getElementById('start').style.display = 'none';
-    
-    
-  
+    webSocket.send("HELLO");
 
-    pc = createPeerConnection();
-    // Build media constraints.
+    navigator.mediaDevices
+        .getUserMedia(constraints)
+        .then(mediaStream => {
 
-    const constraints = {
-        audio: false
-    };
+        // use MediaStream Recording API
+        recorder = new MediaRecorder(mediaStream);
 
-    
-    const audioConstraints = {};
+        // fires every one second and passes an BlobEvent
+        recorder.ondataavailable = event => {
+            console.log(event);
+            
 
-    
+            // get the Blob from the event
+            const blob = event.data;
 
-    constraints.audio = Object.keys(audioConstraints).length ? audioConstraints : true;
-    
+            // and send that blob to the server...
+            webSocket.send(blob);
+        };
 
-    // Acquire media and start negociation.
-
-    if (constraints.audio) {
-        navigator.mediaDevices.getUserMedia(constraints).then((stream) => {
-            stream.getTracks().forEach((track) => {
-                pc.addTrack(track, stream);
-            });
-            return negotiate();
-        }, (err) => {
-            alert('Could not acquire media: ' + err);
-        });
-    } else {
-        negotiate();
-    }
-
-    document.getElementById('stop').style.display = 'inline-block';
+        // make data available event fire every one second
+        recorder.start(2000);
+    });
 }
 
 function stop() {
-    document.getElementById('stop').style.display = 'none';
-    document.getElementById('start').style.display = 'inline'
-
-    // close data channel
-    if (dc) {
-        dc.close();
-    }
-
-    // close transceivers
-    if (pc.getTransceivers) {
-        pc.getTransceivers().forEach((transceiver) => {
-            if (transceiver.stop) {
-                transceiver.stop();
-            }
-        });
-    }
-
-    // close local audio / video
-    pc.getSenders().forEach((sender) => {
-        sender.track.stop();
-    });
-
-    // close peer connection
-    setTimeout(() => {
-        pc.close();
-    }, 500);
+    recorder.stop();
+    webSocket.close(1000, "Finished sending audio");
 }
-
