@@ -1,26 +1,30 @@
-import React from 'react';
-import logo from './logo.svg';
 import './App.css';
-
+import { BrowserRouter, Route, Routes } from 'react-router-dom'
+import Main from './components/Main/Main'
+import Room from './components/Room/Room'
+import styled from 'styled-components'
 function App() {
   return (
-    <div className="App">
-      <header className="App-header">
-        <img src={logo} className="App-logo" alt="logo" />
-        <p>
-          Edit <code>src/App.tsx</code> and save to reload.
-        </p>
-        <a
-          className="App-link"
-          href="https://reactjs.org"
-          target="_blank"
-          rel="noopener noreferrer"
-        >
-          Learn React
-        </a>
-      </header>
-    </div>
-  );
+    <BrowserRouter>
+      <AppContainer>
+        <Routes>
+          <Route path="/" element={<Main />} />
+          <Route path="/room/:roomId" element={<Room />} />
+        </Routes>
+      </AppContainer>
+    </BrowserRouter>);
 }
+
+const AppContainer = styled.div`
+  display: flex;
+  flex-direction: column;
+  min-height: 100vh;
+  align-items: center;
+  justify-content: center;
+  font-size: calc(8px + 2vmin);
+  color: white;
+  background-color: #454552;
+  text-align: center;
+`;
 
 export default App;
