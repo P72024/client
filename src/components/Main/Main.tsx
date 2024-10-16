@@ -1,5 +1,7 @@
 import { useNavigate } from 'react-router-dom'
 import { v4 as uuidv4 } from 'uuid'
+import socket from "../../socket"
+import { Console } from 'console'
 
 const Main = () => {
 	const navigate = useNavigate()
@@ -9,6 +11,7 @@ const Main = () => {
 			method: 'GET',
 		})
 		const uuid = await response.text()
+		console.log("uuid: " + uuid)
 		window.history.pushState({}, `Room: ${uuid}`, `/room/${uuid}`)
 		navigate(`/room/${uuid}`)
 
