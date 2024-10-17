@@ -29,7 +29,7 @@ const Main = () => {
 				navigate(`/room/${uuid}`)
 			}
 			else console.log("No room created. Response: " + response)
-		})
+		})  
 		
 		}
 
@@ -38,7 +38,6 @@ const Main = () => {
 		<h2>Please choose a Username and create a new room :)</h2>
         <input type='text' id="usernameInputField" value={username} placeholder='Johnny' required></input>
 		<button onClick={createRoom}>Create Room</button>
-
 	</div>
 	)
 }
