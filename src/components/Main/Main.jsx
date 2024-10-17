@@ -1,9 +1,9 @@
 import { useNavigate } from 'react-router-dom'
 import { v4 as uuidv4 } from 'uuid'
 import socket from "../../socket"
-import { Console } from 'console'
 
 const Main = () => {
+	let username
 	const navigate = useNavigate()
 
 	async function createRoom() {
@@ -11,6 +11,15 @@ const Main = () => {
 			method: 'GET',
 		})
 		const uuid = await response.text()
+
+        // TODO: Lav input handling!!! det her extremt vulnerable lol. 
+        // TODO: Brug hooks til at håndtere state på inputfeltet. useState hook er smart her.
+        const username = document.getElementById("usernameInputField").value
+        console.log("sending socket to backend. username = " + username)
+        // TODO: BE er en hemmelighed
+        socket.emit("BE-create-username", {
+            username
+        })
 		console.log("uuid: " + uuid)
 		window.history.pushState({}, `Room: ${uuid}`, `/room/${uuid}`)
 		navigate(`/room/${uuid}`)
@@ -19,13 +28,13 @@ const Main = () => {
 
 	return (<div>
 		<h1>Welcome to the most awesome Conference App </h1>
-		<h2>Please create a new room :)</h2>
+		<h2>Please choose a Username and create a new room :)</h2>
+        <input type='text' id="usernameInputField" value={username} placeholder='Johnny' required></input>
 		<button onClick={createRoom}>Create Room</button>
 
 	</div>
 	)
 }
-
 
 
 export default Main
