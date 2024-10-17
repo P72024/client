@@ -5,11 +5,6 @@
 	const Room = (props) => {
 		var username
 		const { roomId } = useParams();
-
-		useEffect(() => {
-			socket.emit("BE-enter-room", "uuid")
-			console.log("Emitted BE-enter-room event with roomId:", roomId)
-		}, [],)
 		
 		return (
 		<div>

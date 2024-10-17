@@ -1,5 +1,4 @@
 import { useNavigate } from 'react-router-dom'
-import { v4 as uuidv4 } from 'uuid'
 import socket from "../../socket"
 
 const Main = () => {
@@ -17,14 +16,22 @@ const Main = () => {
         const username = document.getElementById("usernameInputField").value
         console.log("sending socket to backend. username = " + username)
         // TODO: BE er en hemmelighed
-        socket.emit("BE-create-username", {
+        await socket.emit("BE-create-username", {
             username
         })
 		console.log("uuid: " + uuid)
-		window.history.pushState({}, `Room: ${uuid}`, `/room/${uuid}`)
-		navigate(`/room/${uuid}`)
 
-	}
+		await socket.emit("BE-enter-room", {
+			uuid
+		}, (response) => {
+			if (response === "OK") {
+				window.history.pushState({}, `Room: ${uuid}`, `/room/${uuid}`)
+				navigate(`/room/${uuid}`)
+			}
+			else console.log("No room created. Response: " + response)
+		})
+		
+		}
 
 	return (<div>
 		<h1>Welcome to the most awesome Conference App </h1>
