@@ -1,5 +1,5 @@
 	import { React, useEffect, useRef, useState } from 'react'
-	import { useParams } from 'react-router-dom'
+	import { useNavigate, useLocation, useParams } from 'react-router-dom'
 	import socket from '../../socket'
 
 	
@@ -14,6 +14,9 @@
         const pc = useRef(null);
         const loaded = useRef(false)
         const audio = useRef()
+        const location = useLocation();
+        const state = location.state;
+        const navigate = useNavigate();
 
 
 		socket.on("FE-receive-text", (data) => {
@@ -73,7 +76,11 @@
         }
 
 		useEffect(() => {
-            async function test() {
+            if (!(state && state.visitedFromMainPage)) {
+                console.log("user did not visit from main page. redirecting to main...")
+                return navigate('/')
+            } 
+            async function test() { 
                 await start()
                 await setupDevice()
             }

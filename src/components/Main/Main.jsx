@@ -31,8 +31,7 @@ const Main = () => {
 			uuid
 		}, (response) => {
 			if (response === "OK") {
-				window.history.pushState({}, `Room: ${uuid}`, `/room/${uuid}`)
-				navigate(`/room/${uuid}`)
+				navigate(`/room/${uuid}`, { state: { visitedFromMainPage: true } })
 			}
 			else console.log("No room created. Response: " + response)
 		})  
@@ -46,8 +45,7 @@ const Main = () => {
 				uuid
 			}, (response) => {
 				if (response === "OK") {
-					window.history.pushState({}, `Room: ${uuid}`, `/room/${uuid}`)
-					navigate(`/room/${uuid}`)
+					navigate(`/room/${uuid}`, { state: { visitedFromMainPage: true } })
 				}
 				else console.log("No room created. Response: " + response)
 			})
