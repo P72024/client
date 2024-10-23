@@ -1,29 +1,86 @@
-	import { React, useEffect, useState } from 'react'
+	import { React, useEffect, useRef, useState } from 'react'
 	import { useParams } from 'react-router-dom'
 	import socket from '../../socket'
 
-	let localStream;
-
-
+	
+    let localStream;
+    
+    
 	// TODO: if client in here without room_uuid in sessionstorage then redirect to /. In a useEffect hook
-
+    
 	const Room = (props) => {
-		const { roomId } = useParams();
+        const { roomId } = useParams();
 		const [text, setText] = useState("")
+        const pc = useRef(null);
+        const loaded = useRef(false)
+        const audio = useRef()
+
+
 		socket.on("FE-receive-text", (data) => {
 			setText(text + " " + data)
 		})
+
+        async function start() {
+            console.log('Requesting local stream');
+            localStream = await navigator.mediaDevices.getUserMedia({
+              audio: true,
+            });
+            audio.current.srcObject = localStream
+        }
+
+        async function setupDevice() {
+            console.log('Starting calls');
+
+            pc.current = new RTCPeerConnection();
+            pc.current.ontrack = e => gotRemoteStream(e, audio.current);
+            console.log('pc.current1: created local and remote peer connection objects');
+          
+            localStream.getTracks().forEach(track => {
+              pc.current.addTrack(track, localStream);
+            });
+            await negotiate()
+        }
+
+        async function negotiate() {            
+            const offer = await pc.current.createOffer()
+            await pc.current.setLocalDescription(offer);
+            
+            socket.emit("BE-send-offer", pc.current.localDescription)
+            setUpAudio()
+        }
+
+        socket.on("FE-send-answer", async answer => {
+            console.log("signaling state: ", pc.current.signalingState)
+            if (pc.current.signalingState !== "stable")
+                await pc.current.setRemoteDescription(answer)
+        })
+
+        function setUpAudio() {
+            navigator.mediaDevices.getUserMedia({
+                audio: true
+            }).then((stream) => {
+                stream.getTracks().forEach((track) => {
+                    pc.current.addTrack(track, localStream)
+                })
+            })
+        }
+
+        function gotRemoteStream(e, audioObject) {
+            console.log("Got stream: ", e, audioObject)
+            if (audioObject.srcObject !== e.streams[0]) {
+              audioObject.srcObject = e.streams[0];
+            }
+        }
+
 		useEffect(() => {
-			async function requestRecordPermission() {
-				localStream = await navigator.mediaDevices.getUserMedia({ audio: true });
-				peerConnection = createWebRTCConnectionToServer()
-				localStream.getTracks().forEach(track => {
-					peerConnection.addTrack(track, localStream)
-					console.log(track)
-					}
-				);
-			}
-			requestRecordPermission()
+            async function test() {
+                await start()
+                await setupDevice()
+            }
+            if (loaded.current === false) {
+                test()
+                loaded.current = true
+            }
 		}, [])
 		
 		return (
@@ -33,6 +90,10 @@
 			<button onClick={logSessionData}>Console log session data</button>
 			<br></br>
 			<p id="text" >text: {text}</p>
+            <div>
+                <div>Remote audio:</div>
+                <audio hidden preload="auto" id="audio2" ref={audio} autoPlay controls></audio>
+            </div>
 		</div>
 		
 
@@ -48,7 +109,7 @@ function createWebRTCConnectionToServer() {
     };
 	peerConnection = new RTCPeerConnection(config)
 
-	socket.emit("BE-createPC")
+	socket.emit("BE-createPC.current")
 
 	peerConnection.ontrack = (event) => {
 		const audioElement = document.createElement('audio');
