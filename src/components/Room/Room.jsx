@@ -27,21 +27,29 @@
             console.log('Requesting local stream');
             localStream = await navigator.mediaDevices.getUserMedia({
               audio: true,
+              video: true,
             });
-            audio.current.srcObject = localStream
         }
 
         async function setupDevice() {
             console.log('Starting calls');
 
             pc.current = new RTCPeerConnection();
-            pc.current.ontrack = e => gotRemoteStream(e, audio.current);
-            console.log('pc.current1: created local and remote peer connection objects');
+            // pc.current.addEventListener("track", (e) => {
+            //     console.log("Got stream: ", e, audio.current)
+            //     if (audio.current.srcObject !== e.streams[0]) {
+            //       audio.current.srcObject = e.streams[0];
+            //     }
+            // });
+            pc.current.ontrack = gotRemoteStream;
+            // pc.current.onicecandidate = handleICECandidateEvent
+            console.log('pc.current1: created peer connection objects');
           
             localStream.getTracks().forEach(track => {
-              pc.current.addTrack(track, localStream);
+              pc.current.addTrack(track);
             });
-            await negotiate()
+
+            pc.current.onnegotiationneeded = negotiate
         }
 
         async function negotiate() {            
@@ -49,30 +57,36 @@
             await pc.current.setLocalDescription(offer);
             
             socket.emit("BE-send-offer", pc.current.localDescription)
-            setUpAudio()
         }
+
+        // function handleICECandidateEvent(event) {
+        //     if (event.candidate) {
+        //         socket.emit("BE-new-ice-candidate", {
+        //             target: "server",
+        //             candidate: JSON.stringify(event.candidate)
+        //         })
+        //     }
+        // }
+
+        // socket.on("FE-new-ice-candidate", (candidate) => {
+        //     console.log(candidate)
+        // })
 
         socket.on("FE-send-answer", async answer => {
-            console.log("signaling state: ", pc.current.signalingState)
-            if (pc.current.signalingState !== "stable")
+            if (pc.current.signalingState !== "stable") {
                 await pc.current.setRemoteDescription(answer)
+            }
         })
-
-        function setUpAudio() {
-            navigator.mediaDevices.getUserMedia({
-                audio: true
-            }).then((stream) => {
-                stream.getTracks().forEach((track) => {
-                    pc.current.addTrack(track, localStream)
-                })
-            })
+        
+        function gotRemoteStream(e) {
+            console.log("Got stream: ", e, audio.current)
+            if (audio.current.srcObject !== e.streams[0]) {
+              audio.current.srcObject = e.streams[0];
+            }
         }
 
-        function gotRemoteStream(e, audioObject) {
-            console.log("Got stream: ", e, audioObject)
-            if (audioObject.srcObject !== e.streams[0]) {
-              audioObject.srcObject = e.streams[0];
-            }
+        function muteMic() {
+            localStream.getAudioTracks()[0].enabled = !localStream.getAudioTracks()[0].enabled;
         }
 
 		useEffect(() => {
@@ -97,10 +111,8 @@
 			<button onClick={logSessionData}>Console log session data</button>
 			<br></br>
 			<p id="text" >text: {text}</p>
-            <div>
-                <div>Remote audio:</div>
-                <audio hidden preload="auto" id="audio2" ref={audio} autoPlay controls></audio>
-            </div>
+                <video hidden preload="auto" id="audio2" ref={audio} autoPlay controls></video>
+                <button onClick={muteMic}>Mute mic</button>
 		</div>
 		
 
