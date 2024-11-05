@@ -18,34 +18,34 @@ webSocket.onerror = error => {
 
 const constraints = { audio: true };
 let recorder;
-let firstBlob; 
 
-function start() {
-    navigator.mediaDevices
-        .getUserMedia(constraints)
-        .then(mediaStream => {
-            // Use MediaStream Recording API
-            recorder = new MediaRecorder(mediaStream);
+async function start() {
+    console.log("recording..");
+    const mediaStream = await navigator.mediaDevices.getUserMedia(constraints)
+        
+    // Use MediaStream Recording API
+    recorder = new MediaRecorder(mediaStream);
 
-            // Fires every two seconds and passes a BlobEvent
-            recorder.ondataavailable = event => {
-                const blob = event.data;
-                
-                // Store metadata from the first blob
-                if (!firstBlob) {
-                    firstBlob = blob;
-                }
+    // Fires every two seconds and passes a BlobEvent
+    recorder.ondataavailable = event => {
 
-                // Combine metadata with raw audio data for each blob
-                const combinedBlob = new Blob([firstBlob, blob], { type: blob.type });
+        
+        event.data.arrayBuffer().then((bytes) => console.log(bytes));
+        console.log(event.type);
+        console.log(event.data);
 
-                // Send the combined blob (metadata + raw audio) to the server
-                webSocket.send(combinedBlob);
-            };
-        });
+        
+        webSocket.send(event.data);
+    };
+
+    recorder.start(100);
 }
 
 function stop() {
     recorder.stop();
     webSocket.close(1000, "Finished sending audio");
+}
+
+function sleep(ms) {
+    return new Promise(resolve => setTimeout(resolve, ms));
 }
