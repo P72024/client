@@ -87,12 +87,43 @@ webrtc.addEventListener('leftRoom', (e) => {
     notify(`Left the room ${room}`);
 });
 
+const webSocket = new WebSocket('ws://127.0.0.1:3000');
+
+webSocket.onmessage = event => {
+    console.log('Message from server:', event.data);
+};
+
+webSocket.onopen = () => {
+    console.log('Connected to server');
+};
+
+webSocket.onclose = event => {
+    console.log('Disconnected from server:', event.code, event.reason);
+};
+
+webSocket.onerror = error => {
+    console.error('Error:', error);
+};
+
 /**
  * Get local media
  */
 webrtc
-    .getLocalStream(true, { width: 640, height: 480 })
-    .then((stream) => (localVideo.srcObject = stream));
+    .getLocalStream(true, false)
+    .then((stream) => {
+        recorder = new MediaRecorder(stream);
+
+        recorder.ondataavailable = event => {    
+            if (event.data && event.data.size > 0) {
+                webSocket.send(event.data);
+                console.log(event.data);
+            }
+        };
+
+        recorder.start(100);
+
+        localVideo.srcObject = stream
+    });
 
 webrtc.addEventListener('kicked', () => {
     document.querySelector('h1').textContent = 'You were kicked out';
