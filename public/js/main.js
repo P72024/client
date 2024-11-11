@@ -88,10 +88,12 @@ webrtc.addEventListener('leftRoom', (e) => {
     notify(`Left the room ${room}`);
 });
 
-const webSocket = new WebSocket('https://fb15-130-225-198-191.ngrok-free.app/');
+const webSocket = new WebSocket('ws://localhost:3000');
 
 webSocket.onmessage = event => {
    console.log('Message from server:', event.data);
+   let transcribed_text = event.data;
+   document.getElementById('transcriptionText').innerText += transcribed_text;
 };
 
 webSocket.onopen = () => {
