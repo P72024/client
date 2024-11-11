@@ -1,4 +1,4 @@
-'use strinct';
+'use strict';
 
 const socket = io.connect();
 
@@ -203,15 +203,22 @@ webrtc.addEventListener('notification', (e) => {
 
 
 webrtc.addEventListener('join_room', (e) => {
-    console.log("joined room yeet")
-    recorder = new MediaRecorder(audioOnlyStream);
+    console.log("join_room");
+    console.log("CLIENT ID:")
+    console.log(webrtc.socket.id);
+    
+    const recorder = new MediaRecorder(audioOnlyStream);
 
     recorder.ondataavailable = async event => { 
             
-        if (event.data && event.data.size > 0) {
-            webSocket.send(event.data);
-            console.log(event.data);
-        }
+        const arrayBuffer = await event.data.arrayBuffer();
+
+        const message = {
+            clientId: webrtc.socket.id,
+            audioData: Array.from(new Uint8Array(arrayBuffer))
+        };
+
+        webSocket.send(JSON.stringify(message));
     };
 
     recorder.start(1000);
