@@ -60,6 +60,7 @@ joinBtn.addEventListener('click', () => {
     }
 
     webrtc.joinRoom(room);
+
 });
 
 const setTitle = (status, e) => {
@@ -87,10 +88,10 @@ webrtc.addEventListener('leftRoom', (e) => {
     notify(`Left the room ${room}`);
 });
 
-const webSocket = new WebSocket('ws://127.0.0.1:3000');
+const webSocket = new WebSocket('https://fb15-130-225-198-191.ngrok-free.app/');
 
 webSocket.onmessage = event => {
-    console.log('Message from server:', event.data);
+   console.log('Message from server:', event.data);
 };
 
 webSocket.onopen = () => {
@@ -108,20 +109,14 @@ webSocket.onerror = error => {
 /**
  * Get local media
  */
+
+let audioOnlyStream;
+
 webrtc
-    .getLocalStream(true, false)
+    .getLocalStream(true, {width: 640, height: 480})
     .then((stream) => {
-        recorder = new MediaRecorder(stream);
-
-        recorder.ondataavailable = event => {    
-            if (event.data && event.data.size > 0) {
-                webSocket.send(event.data);
-                console.log(event.data);
-            }
-        };
-
-        recorder.start(100);
-
+        const audioTracks = stream.getAudioTracks()
+        audioOnlyStream = new MediaStream(audioTracks);
         localVideo.srcObject = stream
     });
 
@@ -132,6 +127,7 @@ webrtc.addEventListener('kicked', () => {
 
 webrtc.addEventListener('userLeave', (e) => {
     console.log(`user ${e.detail.socketId} left room`);
+    
 });
 
 /**
@@ -204,3 +200,19 @@ webrtc.addEventListener('notification', (e) => {
 
     notify(notif);
 });
+
+
+webrtc.addEventListener('join_room', (e) => {
+    console.log("joined room yeet")
+    recorder = new MediaRecorder(audioOnlyStream);
+
+    recorder.ondataavailable = async event => { 
+            
+        if (event.data && event.data.size > 0) {
+            webSocket.send(event.data);
+            console.log(event.data);
+        }
+    };
+
+    recorder.start(1000);
+})

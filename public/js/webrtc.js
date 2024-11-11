@@ -89,6 +89,7 @@ class Webrtc extends EventTarget {
             return;
         }
         this.socket.emit('create or join', room);
+        this._emit('join_room', { roomId: room });
     }
 
     leaveRoom() {
