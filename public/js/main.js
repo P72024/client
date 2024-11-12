@@ -231,3 +231,7 @@ function initWebSocket() {
     
     return webSocket;
 }
+
+window.onbeforeunload = function() {
+    webSocket.close();
+}
