@@ -86,6 +86,7 @@ webrtc.addEventListener('leftRoom', (e) => {
     const room = e.detail.roomId;
     document.querySelector('h1').textContent = '';
     notify(`Left the room ${room}`);
+    webSocket.close();
 });
 
 /**
@@ -93,6 +94,7 @@ webrtc.addEventListener('leftRoom', (e) => {
  */
 
 let audioOnlyStream;
+let webSocket;
 
 webrtc
     .getLocalStream(true, {width: 640, height: 480})
@@ -188,7 +190,7 @@ webrtc.addEventListener('join_room', (e) => {
     console.log("CLIENT ID:")
     console.log(webrtc.socket.id);
     
-    const webSocket = initWebSocket();
+    webSocket = initWebSocket();
     const recorder = new MediaRecorder(audioOnlyStream);
 
     recorder.ondataavailable = async event => { 
