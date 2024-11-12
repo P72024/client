@@ -88,26 +88,6 @@ webrtc.addEventListener('leftRoom', (e) => {
     notify(`Left the room ${room}`);
 });
 
-const webSocket = new WebSocket('ws://localhost:3000');
-
-webSocket.onmessage = event => {
-   console.log('Message from server:', event.data);
-   let transcribed_text = event.data;
-   document.getElementById('transcriptionText').innerText += transcribed_text;
-};
-
-webSocket.onopen = () => {
-    console.log('Connected to server');
-};
-
-webSocket.onclose = event => {
-    console.log('Disconnected from server:', event.code, event.reason);
-};
-
-webSocket.onerror = error => {
-    console.error('Error:', error);
-};
-
 /**
  * Get local media
  */
@@ -203,12 +183,12 @@ webrtc.addEventListener('notification', (e) => {
     notify(notif);
 });
 
-
 webrtc.addEventListener('join_room', (e) => {
     console.log("join_room");
     console.log("CLIENT ID:")
     console.log(webrtc.socket.id);
     
+    const webSocket = initWebSocket();
     const recorder = new MediaRecorder(audioOnlyStream);
 
     recorder.ondataavailable = async event => { 
@@ -225,3 +205,27 @@ webrtc.addEventListener('join_room', (e) => {
 
     recorder.start(1000);
 })
+
+function initWebSocket() {
+    const webSocket = new WebSocket('https://fb15-130-225-198-191.ngrok-free.app');
+
+    webSocket.onmessage = event => {
+    console.log('Message from server:', event.data);
+    let transcribed_text = event.data;
+    document.getElementById('transcriptionText').innerText += transcribed_text;
+    };
+
+    webSocket.onopen = () => {
+        console.log('Connected to server');
+    };
+
+    webSocket.onclose = event => {
+        console.log('Disconnected from server:', event.code, event.reason);
+    };
+
+    webSocket.onerror = error => {
+        console.error('Error:', error);
+    };
+    
+    return webSocket;
+}
