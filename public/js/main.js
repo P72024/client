@@ -107,6 +107,7 @@ webrtc
 webrtc.addEventListener('kicked', () => {
     document.querySelector('h1').textContent = 'You were kicked out';
     videoGrid.innerHTML = '';
+    webSocket.close();
 });
 
 webrtc.addEventListener('userLeave', (e) => {
