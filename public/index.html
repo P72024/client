@@ -1,14 +1,12 @@
 <!DOCTYPE html>
 <html>
     <head>
-            <title>WooM</title>
+        <title>WooM</title>
         <link rel="shortcut icon" type="image/ico" href="/favicon.svg" />
-        <link rel="stylesheet" href="css/main.css" />
+        <link rel="stylesheet" href="css/main.css">
     </head>
 
     <body>
-        <h1></h1>
-
         <h1>WooM Meeting</h1>
     
         <div class="center-wrapper">
@@ -21,20 +19,19 @@
         </div>
 
         <div class="transcription_box">
-            <h2>Transcription</h2>
-            <p id="transcriptionText"></p>
-
-        </div>
+            <p id="transcriptionText" aria-placeholder="Transcription"></p>
+        </div> 
     
-
         <p id="notification"></p>
 
-        <div id="localVideo-container">
-            <video autoplay playsinline muted></video>
-        </div>
+        <div class="videoconference-container">
+            <div id="localVideo-container">
+                <video autoplay playsinline muted></video>
+            </div>
 
-        <div id="videos">
-            <div id="videoGrid" class="grid-container"></div>
+            <div class="grid-container" id="videoGrid">
+                <!-- Remote video elements will go here dynamically -->
+            </div>
         </div>
 
         <script src="/socket.io/socket.io.js"></script>
