@@ -20,22 +20,49 @@ const constraints = { audio: true };
 let recorder;
 
 async function start() {
+    const response = await fetch('../testing/frederik.wav');
+    const arrayBuffer = await response.arrayBuffer();
+    console.log(arrayBuffer)
+
+    // Step 2: Create an AudioContext and decode audio data
+    const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+    const audioBuffer = await audioContext.decodeAudioData(arrayBuffer);
+
+    // Step 3: Create a source from the audio buffer
+    const source = audioContext.createBufferSource();
+    source.buffer = audioBuffer;
+
+    // Step 4: Create a MediaStreamAudioDestinationNode and connect the source to it
+    const destination = audioContext.createMediaStreamDestination();
+    source.connect(destination);
+
+    // Step 5: Start the source to play the audio (acts as input to MediaRecorder)
+
+    // Step 6: Create the MediaRecorder from the destination's stream
+    const mediaStream = destination.stream;
+    recorder = new MediaRecorder(mediaStream, { mimeType: "audio/webm;codecs=opus" });
     console.log("recording..");
-    const mediaStream = await navigator.mediaDevices.getUserMedia(constraints)
-        
+    source.start();
+    // const mediaStream = await navigator.mediaDevices.getUserMedia(constraints)
+
     // Use MediaStream Recording API
-    recorder = new MediaRecorder(mediaStream);
+    // recorder = new MediaRecorder(mediaStream);
 
     // Fires every two seconds and passes a BlobEvent
-    recorder.ondataavailable = event => {
+    recorder.ondataavailable = async event => {
 
-        
+
         event.data.arrayBuffer().then((bytes) => console.log(bytes));
         console.log(event.type);
         console.log(event.data);
+        const arrayBuffer = await event.data.arrayBuffer();
 
-        
-        webSocket.send(event.data);
+        const message = {
+            clientId: 'haj',
+            audioData: Array.from(new Uint8Array(arrayBuffer))
+        };
+
+        webSocket.send(JSON.stringify(message));
     };
 
     recorder.start(100);

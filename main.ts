@@ -7,6 +7,30 @@ serve({
     const url = new URL(req.url);
 
     // Serve the root index.html file
+    if (url.pathname === "/testing/male.wav") {
+      return new Response(Bun.file("testing/male.wav"), {});
+    }
+    if (url.pathname === "/testing/peter.wav") {
+      return new Response(Bun.file("testing/peter.wav"), {});
+    }
+    if (url.pathname === "/testing/ozzy.wav") {
+      return new Response(Bun.file("testing/ozzy.wav"), {});
+    }
+    if (url.pathname === "/testing/casper.wav") {
+      return new Response(Bun.file("testing/casper.wav"), {});
+    }
+    if (url.pathname === "/testing/frederik.wav") {
+      return new Response(Bun.file("testing/frederik.wav"), {});
+    }
+    if (url.pathname === "/testing/test1.wav") {
+      return new Response(Bun.file("testing/test1.wav"), {});
+    }
+    if (url.pathname === "/testing/test2.wav") {
+      return new Response(Bun.file("testing/test2.wav"), {});
+    }
+    if (url.pathname === "/testing/female.wav") {
+      return new Response(Bun.file("testing/female.wav"), {});
+    }
     if (url.pathname === "/") {
       return new Response(Bun.file("client/index.html"), {
         headers: { "Content-Type": "text/html" },
