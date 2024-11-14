@@ -18,19 +18,30 @@
             </div>
         </div>
 
+        <div class="info-container">
+            <p>Room ID:</p>
+            <p id="roomID"></p>
+            <p>Client ID:</p>
+            <p id="clienID"></p>
+        </div>
+
         <div class="transcription_box">
             <p id="transcriptionText" aria-placeholder="Transcription"></p>
         </div> 
-    
+
         <p id="notification"></p>
 
         <div class="videoconference-container">
-            <div id="localVideo-container">
-                <video autoplay playsinline muted></video>
+            <div id="localVideo-wrapper">
+                <p class="video-label">You</p>
+                <div id="localVideo-container">
+                    <video autoplay playsinline muted></video>
+                </div>
             </div>
-
-            <div class="grid-container" id="videoGrid">
-                <!-- Remote video elements will go here dynamically -->
+            <div id="remoteVideo-wrapper">
+                <div class="grid-container" id="videoGrid">
+                    <!-- Remote video elements will go here dynamically -->
+                </div>
             </div>
         </div>
 

@@ -85,6 +85,10 @@ leaveBtn.addEventListener('click', () => {
 webrtc.addEventListener('leftRoom', (e) => {
     const room = e.detail.roomId;
     document.querySelector('h1').textContent = '';
+    // Clear the values
+    document.querySelector('#roomID').innerText = '';
+    document.querySelector('#transcriptionText').innerText = '';
+    document.getElementById('clienID').innerText = '';
     notify(`Left the room ${room}`);
     webSocket.close();
 });
@@ -187,10 +191,18 @@ webrtc.addEventListener('notification', (e) => {
 });
 
 webrtc.addEventListener('join_room', (e) => {
+    console.log(e.detail.roomId);
+
     console.log("join_room");
     console.log("CLIENT ID:")
     console.log(webrtc.socket.id);
-    
+
+    const clientID = webrtc.socket.id;
+    const roomID = e.detail.roomId; 
+
+    document.getElementById('clienID').innerText = clientID ;
+    document.getElementById('roomID').innerText = roomID ;
+
     webSocket = initWebSocket();
     const recorder = new MediaRecorder(audioOnlyStream);
 
@@ -199,8 +211,9 @@ webrtc.addEventListener('join_room', (e) => {
         const arrayBuffer = await event.data.arrayBuffer();
 
         const message = {
-            clientId: webrtc.socket.id,
-            audioData: Array.from(new Uint8Array(arrayBuffer))
+            clientId: clientID,
+            audioData: Array.from(new Uint8Array(arrayBuffer)),
+            roomId: roomID
         };
 
         webSocket.send(JSON.stringify(message));
@@ -210,12 +223,13 @@ webrtc.addEventListener('join_room', (e) => {
 })
 
 function initWebSocket() {
-    const webSocket = new WebSocket('https://fb15-130-225-198-191.ngrok-free.app');
+    const webSocket = new WebSocket('ws:localhost:3000');
 
     webSocket.onmessage = event => {
     console.log('Message from server:', event.data);
     let transcribed_text = event.data;
     document.getElementById('transcriptionText').innerText += transcribed_text;
+
     };
 
     webSocket.onopen = () => {
