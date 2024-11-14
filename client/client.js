@@ -20,7 +20,10 @@ const constraints = { audio: true };
 let recorder;
 
 async function start() {
-    const response = await fetch('../testing/frederik.wav');
+    /////////////////////////////
+    // RECORD USING AUDIO FILE //
+    /////////////////////////////
+    const response = await fetch('../testing/parl1.mp4');
     const arrayBuffer = await response.arrayBuffer();
     console.log(arrayBuffer)
 
@@ -40,14 +43,17 @@ async function start() {
 
     // Step 6: Create the MediaRecorder from the destination's stream
     const mediaStream = destination.stream;
-    recorder = new MediaRecorder(mediaStream, { mimeType: "audio/webm;codecs=opus" });
     console.log("recording..");
     source.start();
+
+    /////////////////////////////
+    // RECORD USING MICROPHONE //
+    /////////////////////////////
     // const mediaStream = await navigator.mediaDevices.getUserMedia(constraints)
 
     // Use MediaStream Recording API
-    // recorder = new MediaRecorder(mediaStream);
 
+    recorder = new MediaRecorder(mediaStream, { mimeType: "audio/webm;codecs=opus" });
     // Fires every two seconds and passes a BlobEvent
     recorder.ondataavailable = async event => {
 
