@@ -90,6 +90,7 @@ webrtc.addEventListener('leftRoom', (e) => {
     document.querySelector('#transcriptionText').innerText = '';
     document.getElementById('clienID').innerText = '';
     notify(`Left the room ${room}`);
+    recorder.stop();
     webSocket.close();
 });
 
@@ -99,6 +100,7 @@ webrtc.addEventListener('leftRoom', (e) => {
 
 let audioOnlyStream;
 let webSocket;
+let recorder;
 
 webrtc
     .getLocalStream(true, {width: 640, height: 480})
@@ -111,12 +113,12 @@ webrtc
 webrtc.addEventListener('kicked', () => {
     document.querySelector('h1').textContent = 'You were kicked out';
     videoGrid.innerHTML = '';
+    recorder.stop();
     webSocket.close();
 });
 
 webrtc.addEventListener('userLeave', (e) => {
     console.log(`user ${e.detail.socketId} left room`);
-    
 });
 
 /**
@@ -204,7 +206,7 @@ webrtc.addEventListener('join_room', (e) => {
     document.getElementById('roomID').innerText = roomID ;
 
     webSocket = initWebSocket();
-    const recorder = new MediaRecorder(audioOnlyStream);
+    recorder = new MediaRecorder(audioOnlyStream);
 
     recorder.ondataavailable = async event => { 
             
@@ -216,6 +218,7 @@ webrtc.addEventListener('join_room', (e) => {
             roomId: roomID
         };
 
+        console.log("Sending message to server");
         webSocket.send(JSON.stringify(message));
     };
 
@@ -223,12 +226,13 @@ webrtc.addEventListener('join_room', (e) => {
 })
 
 function initWebSocket() {
-    const webSocket = new WebSocket('ws:localhost:3000');
+    const webSocket = new WebSocket('https://41a5-130-225-198-180.ngrok-free.app/');
 
     webSocket.onmessage = event => {
     console.log('Message from server:', event.data);
     let transcribed_text = event.data;
-    document.getElementById('transcriptionText').innerText += transcribed_text;
+
+    document.getElementById('transcriptionText').innerText += " " + transcribed_text;
 
     };
 
