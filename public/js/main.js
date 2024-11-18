@@ -226,7 +226,7 @@ webrtc.addEventListener('join_room', (e) => {
 })
 
 function initWebSocket() {
-    const webSocket = new WebSocket('https://41a5-130-225-198-180.ngrok-free.app/');
+    const webSocket = new WebSocket('https://a949-130-225-38-116.ngrok-free.app');
 
     webSocket.onmessage = event => {
     console.log('Message from server:', event.data);
