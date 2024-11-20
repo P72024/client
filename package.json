@@ -1,11 +1,16 @@
 {
   "name": "p7-speech-recognition-client",
-  "module": "main.ts",
+  "module": "index.ts",
   "type": "module",
   "devDependencies": {
     "@types/bun": "latest"
   },
   "peerDependencies": {
     "typescript": "^5.0.0"
+  },
+  "dependencies": {
+    "@types/express": "^5.0.0",
+    "express": "^4.21.1",
+    "socket.io": "^4.8.1"
   }
 }

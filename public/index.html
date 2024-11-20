@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html>
+    <head>
+        <title>WooM</title>
+        <link rel="shortcut icon" type="image/ico" href="/favicon.svg" />
+        <link rel="stylesheet" href="css/main.css">
+    </head>
+
+    <body>
+        <h1>WooM Meeting</h1>
+    
+        <div class="center-wrapper">
+            <div class="buttonscontainer">
+                <label for="roomId">Room ID</label>
+                <input id="roomId" type="text" />
+                <button id="joinBtn">Join</button>
+                <button id="leaveBtn">Leave</button>
+            </div>
+        </div>
+
+        <div class="info-container">
+            <p>Room ID:</p>
+            <p id="roomID"></p>
+            <p>Client ID:</p>
+            <p id="clienID"></p>
+        </div>
+
+        <div class="transcription_box">
+            <p id="transcriptionText" aria-placeholder="Transcription"></p>
+        </div> 
+
+        <p id="notification"></p>
+
+        <div class="videoconference-container">
+            <div id="localVideo-wrapper">
+                <p class="video-label">You</p>
+                <div id="localVideo-container">
+                    <video autoplay playsinline muted></video>
+                </div>
+            </div>
+            <div id="remoteVideo-wrapper">
+                <div class="grid-container" id="videoGrid">
+                    <!-- Remote video elements will go here dynamically -->
+                </div>
+            </div>
+        </div>
+
+        <script src="/socket.io/socket.io.js"></script>
+        <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
+        <script src="js/webrtc.js"></script>
+        <script src="js/main.js"></script>
+    </body>
+</html>

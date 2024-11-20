@@ -1,0 +1,256 @@
+'use strict';
+
+const socket = io.connect();
+
+const localVideo = document.querySelector('#localVideo-container video');
+const videoGrid = document.querySelector('#videoGrid');
+const notification = document.querySelector('#notification');
+const notify = (message) => {
+    notification.innerHTML = message;
+};
+
+const pcConfig = {
+    iceServers: [
+        {
+            urls: [
+                'stun:stun.l.google.com:19302',
+                'stun:stun1.l.google.com:19302',
+                'stun:stun2.l.google.com:19302',
+                'stun:stun3.l.google.com:19302',
+                'stun:stun4.l.google.com:19302',
+            ],
+        },
+        {
+            urls: 'turn:numb.viagenie.ca',
+            credential: 'muazkh',
+            username: 'webrtc@live.com',
+        },
+        {
+            urls: 'turn:numb.viagenie.ca',
+            credential: 'muazkh',
+            username: 'webrtc@live.com',
+        },
+        {
+            urls: 'turn:192.158.29.39:3478?transport=udp',
+            credential: 'JZEOEt2V3Qb0y27GRntt2u2PAYA=',
+            username: '28224511:1379330808',
+        },
+    ],
+};
+
+/**
+ * Initialize webrtc
+ */
+const webrtc = new Webrtc(socket, pcConfig, {
+    log: true,
+    warn: true,
+    error: true,
+});
+
+/**
+ * Create or join a room
+ */
+const roomInput = document.querySelector('#roomId');
+const joinBtn = document.querySelector('#joinBtn');
+joinBtn.addEventListener('click', () => {
+    const room = roomInput.value;
+    if (!room) {
+        notify('Room ID not provided');
+        return;
+    }
+
+    webrtc.joinRoom(room);
+
+});
+
+const setTitle = (status, e) => {
+    const room = e.detail.roomId;
+
+    console.log(`Room ${room} was ${status}`);
+
+    notify(`Room ${room} was ${status}`);
+    document.querySelector('h1').textContent = `Room: ${room}`;
+    webrtc.gotStream();
+};
+webrtc.addEventListener('createdRoom', setTitle.bind(this, 'created'));
+webrtc.addEventListener('joinedRoom', setTitle.bind(this, 'joined'));
+
+/**
+ * Leave the room
+ */
+const leaveBtn = document.querySelector('#leaveBtn');
+leaveBtn.addEventListener('click', () => {
+    webrtc.leaveRoom();
+});
+webrtc.addEventListener('leftRoom', (e) => {
+    const room = e.detail.roomId;
+    document.querySelector('h1').textContent = '';
+    // Clear the values
+    document.querySelector('#roomID').innerText = '';
+    document.querySelector('#transcriptionText').innerText = '';
+    document.getElementById('clienID').innerText = '';
+    notify(`Left the room ${room}`);
+    recorder.stop();
+    webSocket.close();
+});
+
+/**
+ * Get local media
+ */
+
+let audioOnlyStream;
+let webSocket;
+let recorder;
+
+webrtc
+    .getLocalStream(true, {width: 640, height: 480})
+    .then((stream) => {
+        const audioTracks = stream.getAudioTracks()
+        audioOnlyStream = new MediaStream(audioTracks);
+        localVideo.srcObject = stream
+    });
+
+webrtc.addEventListener('kicked', () => {
+    document.querySelector('h1').textContent = 'You were kicked out';
+    videoGrid.innerHTML = '';
+    recorder.stop();
+    webSocket.close();
+});
+
+webrtc.addEventListener('userLeave', (e) => {
+    console.log(`user ${e.detail.socketId} left room`);
+});
+
+/**
+ * Handle new user connection
+ */
+webrtc.addEventListener('newUser', (e) => {
+    const socketId = e.detail.socketId;
+    const stream = e.detail.stream;
+
+    const videoContainer = document.createElement('div');
+    videoContainer.setAttribute('class', 'grid-item');
+    videoContainer.setAttribute('id', socketId);
+
+    const video = document.createElement('video');
+    video.setAttribute('autoplay', true);
+    video.setAttribute('muted', true); // set to false
+    video.setAttribute('playsinline', true);
+    video.srcObject = stream;
+
+    const p = document.createElement('p');
+    p.textContent = socketId;
+
+    videoContainer.append(p);
+    videoContainer.append(video);
+
+    // If user is admin add kick buttons
+    if (webrtc.isAdmin) {
+        const kickBtn = document.createElement('button');
+        kickBtn.setAttribute('class', 'kick_btn');
+        kickBtn.textContent = 'Kick';
+
+        kickBtn.addEventListener('click', () => {
+            webrtc.kickUser(socketId);
+        });
+
+        videoContainer.append(kickBtn);
+    }
+    videoGrid.append(videoContainer);
+});
+
+/**
+ * Handle user got removed
+ */
+webrtc.addEventListener('removeUser', (e) => {
+    const socketId = e.detail.socketId;
+    if (!socketId) {
+        // remove all remote stream elements
+        videoGrid.innerHTML = '';
+        return;
+    }
+    document.getElementById(socketId).remove();
+});
+
+/**
+ * Handle errors
+ */
+webrtc.addEventListener('error', (e) => {
+    const error = e.detail.error;
+    console.error(error);
+
+    notify(error);
+});
+
+/**
+ * Handle notifications
+ */
+webrtc.addEventListener('notification', (e) => {
+    const notif = e.detail.notification;
+    console.log(notif);
+
+    notify(notif);
+});
+
+webrtc.addEventListener('join_room', (e) => {
+    console.log(e.detail.roomId);
+
+    console.log("join_room");
+    console.log("CLIENT ID:")
+    console.log(webrtc.socket.id);
+
+    const clientID = webrtc.socket.id;
+    const roomID = e.detail.roomId; 
+
+    document.getElementById('clienID').innerText = clientID ;
+    document.getElementById('roomID').innerText = roomID ;
+
+    webSocket = initWebSocket();
+    recorder = new MediaRecorder(audioOnlyStream);
+
+    recorder.ondataavailable = async event => { 
+            
+        const arrayBuffer = await event.data.arrayBuffer();
+
+        const message = {
+            clientId: clientID,
+            audioData: Array.from(new Uint8Array(arrayBuffer)),
+            roomId: roomID
+        };
+
+        console.log("Sending message to server");
+        webSocket.send(JSON.stringify(message));
+    };
+
+    recorder.start(800);
+})
+
+function initWebSocket() {
+    const webSocket = new WebSocket('https://4de8-130-225-38-116.ngrok-free.app');
+
+    webSocket.onmessage = event => {
+    console.log('Message from server:', event.data);
+    let transcribed_text = event.data;
+
+    document.getElementById('transcriptionText').innerText += " " + transcribed_text;
+
+    };
+
+    webSocket.onopen = () => {
+        console.log('Connected to server');
+    };
+
+    webSocket.onclose = event => {
+        console.log('Disconnected from server:', event.code, event.reason);
+    };
+
+    webSocket.onerror = error => {
+        console.error('Error:', error);
+    };
+    
+    return webSocket;
+}
+
+window.onbeforeunload = function() {
+    webSocket.close();
+}
