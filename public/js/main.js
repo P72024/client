@@ -222,11 +222,11 @@ webrtc.addEventListener('join_room', (e) => {
         webSocket.send(JSON.stringify(message));
     };
 
-    recorder.start(1000);
+    recorder.start(800);
 })
 
 function initWebSocket() {
-    const webSocket = new WebSocket('https://a949-130-225-38-116.ngrok-free.app');
+    const webSocket = new WebSocket('https://4de8-130-225-38-116.ngrok-free.app');
 
     webSocket.onmessage = event => {
     console.log('Message from server:', event.data);
