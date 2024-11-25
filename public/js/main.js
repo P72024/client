@@ -1,3 +1,5 @@
+import webSocket from '../../index.ts'
+
 'use strict';
 
 const socket = io.connect();
@@ -99,7 +101,6 @@ webrtc.addEventListener('leftRoom', (e) => {
  */
 
 let audioOnlyStream;
-let webSocket;
 let recorder;
 
 webrtc
@@ -205,7 +206,6 @@ webrtc.addEventListener('join_room', (e) => {
     document.getElementById('clienID').innerText = clientID ;
     document.getElementById('roomID').innerText = roomID ;
 
-    webSocket = initWebSocket();
     recorder = new MediaRecorder(audioOnlyStream);
 
     recorder.ondataavailable = async event => { 
@@ -215,7 +215,8 @@ webrtc.addEventListener('join_room', (e) => {
         const message = {
             clientId: clientID,
             audioData: Array.from(new Uint8Array(arrayBuffer)),
-            roomId: roomID
+            roomId: roomID,
+            type: "audio"
         };
 
         console.log("Sending message to server");
@@ -224,32 +225,6 @@ webrtc.addEventListener('join_room', (e) => {
 
     recorder.start(800);
 })
-
-function initWebSocket() {
-    const webSocket = new WebSocket('https://87f6-130-225-38-116.ngrok-free.app');
-
-    webSocket.onmessage = event => {
-    console.log('Message from server:', event.data);
-    let transcribed_text = event.data;
-
-    document.getElementById('transcriptionText').innerText += " " + transcribed_text;
-
-    };
-
-    webSocket.onopen = () => {
-        console.log('Connected to server');
-    };
-
-    webSocket.onclose = event => {
-        console.log('Disconnected from server:', event.code, event.reason);
-    };
-
-    webSocket.onerror = error => {
-        console.error('Error:', error);
-    };
-    
-    return webSocket;
-}
 
 window.onbeforeunload = function() {
     webSocket.close();

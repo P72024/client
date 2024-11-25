@@ -23,6 +23,39 @@ server.listen(port, () => {
     console.log(`listening on port ${port}`);
 });
 
+export const webSocket = initWebSocket()
+
+function initWebSocket() {
+    const webSocket = new WebSocket('https://87f6-130-225-38-116.ngrok-free.app');
+
+    webSocket.onmessage = event => {
+        console.log('Message from server:', event.data);
+        let transcribedText = event.data;
+
+        const transcriptionTextElement = document.getElementById('transcriptionText');
+        if (transcriptionTextElement) {
+            transcriptionTextElement.innerText += " " + transcribedText;
+        }
+        else {
+            console.log("No element with id: transcriptionText")
+        }
+    };
+
+    webSocket.onopen = () => {
+        console.log('Connected to server');
+    };
+
+    webSocket.onclose = event => {
+        console.log('Disconnected from server:', event.code, event.reason);
+    };
+
+    webSocket.onerror = error => {
+        console.error('Error:', error);
+    };
+    
+    return webSocket;
+}
+
 /**
  * Socket.io events
  */
@@ -38,73 +71,9 @@ io.sockets.on('connection', (socket: Socket) => {
         socket.emit('log', array);
     }
 
-    /**
-     * Handle message from a client
-     * If toId is provided message will be sent ONLY to the client with that id
-     * If toId is NOT provided and room IS provided message will be broadcast to that room
-     * If NONE is provided message will be sent to all clients
-     */
-    socket.on('message', (message: any, toId: string | null = null, room: string | null = null) => {
-        log('Client ' + socket.id + ' said: ', message);
-
-        if (toId) {
-            console.log('From ', socket.id, ' to ', toId, message.type);
-            io.to(toId).emit('message', message, socket.id);
-        } else if (room) {
-            console.log('From ', socket.id, ' to room: ', room, message.type);
-            socket.broadcast.to(room).emit('message', message, socket.id);
-        } else {
-            console.log('From ', socket.id, ' to everyone ', message.type);
-            socket.broadcast.emit('message', message, socket.id);
-        }
-    });
-
     let roomAdmin: string; // save admins socket id (will get overwritten if new room gets created)
 
-    /**
-     * When room gets created or someone joins it
-     */
-    socket.on('create or join', (room: string) => {
-        log('Create or Join room: ' + room);
 
-        // Get number of clients in the room
-        const clientsInRoom = io.sockets.adapter.rooms.get(room);
-        let numClients = clientsInRoom ? clientsInRoom.size : 0;
-
-        if (numClients === 0) {
-            // Create room
-            socket.join(room);
-            roomAdmin = socket.id;
-            socket.emit('created', room, socket.id);
-        } else {
-            log('Client ' + socket.id + ' joined room ' + room);
-
-            // Join room
-            io.sockets.in(room).emit('join', room); // Notify users in room
-            socket.join(room);
-            io.to(socket.id).emit('joined', room, socket.id); // Notify client that they joined a room
-            io.sockets.in(room).emit('ready', socket.id); // Room is ready for creating connections
-        }
-    });
-
-    /**
-     * Kick participant from a call
-     */
-    socket.on('kickout', (socketId: string, room: string) => {
-        if (socket.id === roomAdmin) {
-            socket.broadcast.emit('kickout', socketId);
-            io.sockets.sockets.get(socketId)?.leave(room);
-        } else {
-            console.log('not an admin');
-        }
-    });
-
-    // participant leaves room
-    socket.on('leave room', (room: string) => {
-        socket.leave(room);
-        socket.emit('left room', room);
-        socket.broadcast.to(room).emit('message', { type: 'leave' }, socket.id);
-    });
 
     /**
      * When participant leaves notify other participants
