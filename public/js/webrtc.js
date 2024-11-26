@@ -4,7 +4,7 @@ class Webrtc extends EventTarget {
     constructor(
         socket,
         pcConfig = null,
-        logging = { log: true, warn: true, error: true }
+        logging = { log: true, warn: true, error: true },
     ) {
         super();
         this.room;
@@ -25,9 +25,6 @@ class Webrtc extends EventTarget {
         this.log = logging.log ? console.log : () => {};
         this.warn = logging.warn ? console.warn : () => {};
         this.error = logging.error ? console.error : () => {};
-
-        // Initialize socket.io listeners
-        this._onSocketListeners();
     }
 
     // Custom event emitter
@@ -88,7 +85,7 @@ class Webrtc extends EventTarget {
             });
             return;
         }
-        this.socket.emit('create or join', room);
+        this.socket.send({ type: 'create or join', roomId: room, clientId: this.myId });
         this._emit('join_room', { roomId: room });
     }
 
@@ -102,7 +99,7 @@ class Webrtc extends EventTarget {
             return;
         }
         this.isInitiator = false;
-        this.socket.emit('leave room', this.room);
+        this.socket.send({ type: 'leave room', roomId: this.roomId(), clientId: this.myId });
     }
 
     // Get local stream
@@ -147,143 +144,8 @@ class Webrtc extends EventTarget {
         }
     }
 
-    /**
-     * Initialize listeners for socket.io events
-     */
-    _onSocketListeners() {
-        this.log('socket listeners initialized');
-
-        // Room got created
-        this.socket.on('created', (room, socketId) => {
-            this.room = room;
-            this._myId = socketId;
-            this.isInitiator = true;
-            this._isAdmin = true;
-
-            this._emit('createdRoom', { roomId: room });
-        });
-
-        // Joined the room
-        this.socket.on('joined', (room, socketId) => {
-            this.log('joined: ' + room);
-
-            this.room = room;
-            this.isReady = true;
-            this._myId = socketId;
-
-            this._emit('joinedRoom', { roomId: room });
-        });
-
-        // Left the room
-        this.socket.on('left room', (room) => {
-            if (room === this.room) {
-                this.warn(`Left the room ${room}`);
-
-                this.room = null;
-                this._removeUser();
-                this._emit('leftRoom', {
-                    roomId: room,
-                });
-            }
-        });
-
-        // Someone joins room
-        this.socket.on('join', (room) => {
-            this.log('Incoming request to join room: ' + room);
-
-            this.isReady = true;
-
-            this.dispatchEvent(new Event('newJoin'));
-        });
-
-        // Room is ready for connection
-        this.socket.on('ready', (user) => {
-            this.log('User: ', user, ' joined room');
-
-            if (user !== this._myId && this.inCall) this.isInitiator = true;
-        });
-
-        // Someone got kicked from call
-        this.socket.on('kickout', (socketId) => {
-            this.log('kickout user: ', socketId);
-
-            if (socketId === this._myId) {
-                // You got kicked out
-                this.dispatchEvent(new Event('kicked'));
-                this._removeUser();
-            } else {
-                // Someone else got kicked out
-                this._removeUser(socketId);
-            }
-        });
-
-        // Logs from server
-        this.socket.on('log', (log) => {
-            this.log.apply(console, log);
-        });
-
-        /**
-         * Message from the server
-         * Manage stream and sdp exchange between peers
-         */
-        this.socket.on('message', (message, socketId) => {
-            this.log('From', socketId, ' received:', message.type);
-
-            // Participant leaves
-            if (message.type === 'leave') {
-                this.log(socketId, 'Left the call.');
-                this._removeUser(socketId);
-                this.isInitiator = true;
-
-                this._emit('userLeave', { socketId: socketId });
-                return;
-            }
-
-            // Avoid dublicate connections
-            if (
-                this.pcs[socketId] &&
-                this.pcs[socketId].connectionState === 'connected'
-            ) {
-                this.log(
-                    'Connection with ',
-                    socketId,
-                    'is already established'
-                );
-                return;
-            }
-
-            switch (message.type) {
-                case 'gotstream': // user is ready to share their stream
-                    this._connect(socketId);
-                    break;
-                case 'offer': // got connection offer
-                    if (!this.pcs[socketId]) {
-                        this._connect(socketId);
-                    }
-                    this.pcs[socketId].setRemoteDescription(
-                        new RTCSessionDescription(message)
-                    );
-                    this._answer(socketId);
-                    break;
-                case 'answer': // got answer for sent offer
-                    this.pcs[socketId].setRemoteDescription(
-                        new RTCSessionDescription(message)
-                    );
-                    break;
-                case 'candidate': // received candidate sdp
-                    this.inCall = true;
-                    const candidate = new RTCIceCandidate({
-                        sdpMLineIndex: message.label,
-                        candidate: message.candidate,
-                    });
-                    this.pcs[socketId].addIceCandidate(candidate);
-                    break;
-            }
-        });
-    }
-
     _sendMessage(message, toId = null, roomId = null) {
-        this.socket.emit('message', message, toId, roomId);
+        this.socket.send({ type: 'message', toId: toId, roomId: roomId, clientId: this.myId, message: message });
     }
 
     _createPeerConnection(socketId) {
@@ -435,6 +297,8 @@ class Webrtc extends EventTarget {
             return;
         }
         this._removeUser(socketId);
-        this.socket.emit('kickout', socketId, this.room);
+        this.socket.send({ type: 'kickout', roomId: this.room, clientId: this.myId, clientToKickId: socketId });
+    }
+    _onSocketListeners() {
     }
 }
