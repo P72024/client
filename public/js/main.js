@@ -2,8 +2,6 @@ import webSocket from '../../index.ts'
 
 'use strict';
 
-const socket = io.connect();
-
 const localVideo = document.querySelector('#localVideo-container video');
 const videoGrid = document.querySelector('#videoGrid');
 const notification = document.querySelector('#notification');
@@ -43,7 +41,7 @@ const pcConfig = {
 /**
  * Initialize webrtc
  */
-const webrtc = new Webrtc(socket, pcConfig, {
+const webrtc = new Webrtc(webSocket, pcConfig, {
     log: true,
     warn: true,
     error: true,
