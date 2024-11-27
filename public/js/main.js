@@ -38,6 +38,8 @@ const pcConfig = {
     ],
 };
 
+let MicVAD = null;
+
 /**
  * Initialize webrtc
  */
@@ -90,7 +92,7 @@ webrtc.addEventListener('leftRoom', (e) => {
     document.querySelector('#transcriptionText').innerText = '';
     document.getElementById('clienID').innerText = '';
     notify(`Left the room ${room}`);
-    recorder.stop();
+    MicVAD.destroy();
     webSocket.close();
 });
 
@@ -98,22 +100,19 @@ webrtc.addEventListener('leftRoom', (e) => {
  * Get local media
  */
 
-let audioOnlyStream;
 let webSocket;
-let recorder;
 
 webrtc
     .getLocalStream(true, {width: 640, height: 480})
     .then((stream) => {
         const audioTracks = stream.getAudioTracks()
-        audioOnlyStream = new MediaStream(audioTracks);
         localVideo.srcObject = stream
     });
 
 webrtc.addEventListener('kicked', () => {
     document.querySelector('h1').textContent = 'You were kicked out';
     videoGrid.innerHTML = '';
-    recorder.stop();
+    MicVAD.destroy();
     webSocket.close();
 });
 
@@ -172,6 +171,20 @@ webrtc.addEventListener('removeUser', (e) => {
     document.getElementById(socketId).remove();
 });
 
+document.querySelector('#mute').addEventListener('change', (e) => {
+    console.log(e.target.checked);
+    if (e.target.checked) {
+        webrtc.localStream.getAudioTracks()[0].enabled = true
+        MicVAD.pause();
+        console.log("Muted");
+    }
+    else {
+        webrtc.localStream.getAudioTracks()[0].enabled = false
+        MicVAD.start();
+        console.log("Unmuted");
+    }
+});
+
 /**
  * Handle errors
  */
@@ -192,7 +205,7 @@ webrtc.addEventListener('notification', (e) => {
     notify(notif);
 });
 
-webrtc.addEventListener('join_room', (e) => {
+webrtc.addEventListener('join_room', async (e) => {
     console.log(e.detail.roomId);
 
     console.log("join_room");
@@ -202,31 +215,62 @@ webrtc.addEventListener('join_room', (e) => {
     const clientID = webrtc.socket.id;
     const roomID = e.detail.roomId; 
 
-    document.getElementById('clienID').innerText = clientID ;
-    document.getElementById('roomID').innerText = roomID ;
+    document.getElementById('clienID').innerText = clientID;
+    document.getElementById('roomID').innerText = roomID;
 
     webSocket = initWebSocket();
-    recorder = new MediaRecorder(audioOnlyStream);
+    
+    /**
+        https://github.com/ricky0123/vad  TODO: cite this
+    */
 
-    recorder.ondataavailable = async event => { 
-            
-        const arrayBuffer = await event.data.arrayBuffer();
+    let audioChunks = [];
+    const minChunkSize = 16;
 
-        const message = {
-            clientId: clientID,
-            audioData: Array.from(new Uint8Array(arrayBuffer)),
-            roomId: roomID
-        };
+    MicVAD = await vad.MicVAD.new({
+        onSpeechStart: () => {
+            console.log("Speech start detected")
+        },
+        onFrameProcessed: (probabilities, audioFrame) => {
+            if (probabilities.notSpeech > 0.8) {
+                return;
+            }
 
-        console.log("Sending message to server");
-        webSocket.send(JSON.stringify(message));
-    };
+            audioChunks.push(Array.from(new Float32Array(audioFrame)));
 
-    recorder.start(800);
+            if (audioChunks.length >= minChunkSize) {
+                console.log("sending audio")
+                sendAudioData(clientID, roomID, audioChunks);
+                audioChunks = [];
+            }
+        },
+        onSpeechEnd: () => {
+            if (audioChunks.length < minChunkSize) {
+                console.log("end of sentence detected, sending remaining audio");
+                sendAudioData(clientID, roomID, audioChunks);
+                audioChunks = [];
+            }
+        }
+    });
+
+    MicVAD.start();
 })
 
+function sendAudioData(clientID, roomID, audioChunks) {
+    const flattenedAudio = audioChunks.flat(1);
+
+    const message = {
+        clientId: clientID,
+        audioData: Array.from(new Float32Array(flattenedAudio)),
+        roomId: roomID
+    };
+    
+    webSocket.send(JSON.stringify(message));
+    console.log(message);
+}
+
 function initWebSocket() {
-    const webSocket = new WebSocket('https://87f6-130-225-38-116.ngrok-free.app');
+    const webSocket = new WebSocket('ws://localhost:3000');
 
     webSocket.onmessage = event => {
     console.log('Message from server:', event.data);
@@ -252,5 +296,7 @@ function initWebSocket() {
 }
 
 window.onbeforeunload = function() {
+    MicVAD.destroy();
     webSocket.close();
+    webrtc.leaveRoom();
 }
