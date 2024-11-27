@@ -192,14 +192,16 @@ webrtc.addEventListener('notification', (e) => {
 });
 
 webrtc.addEventListener('join_room', (e) => {
-    console.log(e.detail.roomId);
-
     console.log("join_room");
-    console.log("CLIENT ID:")
-    console.log(webrtc.myId);
 
     const clientID = webrtc.myId;
     const roomID = e.detail.roomId; 
+    console.log("ROOM ID:")
+    console.log(roomID)
+
+    console.log("CLIENT ID:")
+    console.log(clientID)
+
 
     document.getElementById('clienID').innerText = clientID ;
     document.getElementById('roomID').innerText = roomID ;
@@ -217,7 +219,7 @@ webrtc.addEventListener('join_room', (e) => {
             type: "audio"
         };
 
-        console.log("Sending message to server");
+        console.log("Sending message to server: ", message);
         webSocket.send(JSON.stringify(message));
     };
 
@@ -228,8 +230,8 @@ function initWebSocket() {
     const webSocket = new WebSocket('http://localhost:3000');
     
     webSocket.onmessage = event => {
-        console.log('Message from server:', event.data);
-        const data = event.data
+        const data = JSON.parse(event.data)
+        console.log('Message from server:', data);
         switch (data.type) {
             case "created":
                 createRoom(data)
@@ -260,6 +262,7 @@ function initWebSocket() {
                 break
             default:
                 console.log("Incorrect type on message: ", data)
+                break
         }
     };
 
@@ -344,9 +347,9 @@ function kickout(data) {
     }
 }
 function message(data) {
-    webrtc.log('From', socketId, ' received:', message.type);
     const message = data.message.message;
     const socketId = data.message.client_id;
+    webrtc.log('From', socketId, ' received:', message.type);
     // Participant leaves
     if (message.type === 'leave') {
         webrtc.log(socketId, 'Left the call.');
@@ -400,7 +403,7 @@ function message(data) {
 }
 
 function getId(data){
-    webrtc.myId = data.message;
+    webrtc._myId = data.message;
 }
 
 function getTranscribedText(data) {

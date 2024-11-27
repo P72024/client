@@ -85,7 +85,7 @@ class Webrtc extends EventTarget {
             });
             return;
         }
-        this.socket.send({ type: 'create or join', roomId: room, clientId: this.myId });
+        this.socket.send(JSON.stringify({ type: 'create or join', roomId: room, clientId: this.myId }));
         this._emit('join_room', { roomId: room });
     }
 
@@ -99,7 +99,7 @@ class Webrtc extends EventTarget {
             return;
         }
         this.isInitiator = false;
-        this.socket.send({ type: 'leave room', roomId: this.roomId(), clientId: this.myId });
+        this.socket.send(JSON.stringify({ type: 'leave room', roomId: this.roomId(), clientId: this.myId }));
     }
 
     // Get local stream
@@ -145,7 +145,7 @@ class Webrtc extends EventTarget {
     }
 
     _sendMessage(message, toId = null, roomId = null) {
-        this.socket.send({ type: 'message', toId: toId, roomId: roomId, clientId: this.myId, message: message });
+        this.socket.send(JSON.stringify({ type: 'message', toId: toId, roomId: roomId, clientId: this.myId, message: message }));
     }
 
     _createPeerConnection(socketId) {
@@ -297,7 +297,7 @@ class Webrtc extends EventTarget {
             return;
         }
         this._removeUser(socketId);
-        this.socket.send({ type: 'kickout', roomId: this.room, clientId: this.myId, clientToKickId: socketId });
+        this.socket.send(JSON.stringify({ type: 'kickout', roomId: this.room, clientId: this.myId, clientToKickId: socketId }));
     }
     _onSocketListeners() {
     }
