@@ -226,27 +226,26 @@ webrtc.addEventListener('join_room', async (e) => {
 
     let audioChunks = [];
     const minChunkSize = 16;
+    const speechThreshold = 0.8;
 
     MicVAD = await vad.MicVAD.new({
         onSpeechStart: () => {
             console.log("Speech start detected")
         },
         onFrameProcessed: (probabilities, audioFrame) => {
-            if (probabilities.notSpeech > 0.8) {
-                return;
-            }
+            if (probabilities.isSpeech > speechThreshold) {
+                audioChunks.push(Array.from(new Float32Array(audioFrame)));
 
-            audioChunks.push(Array.from(new Float32Array(audioFrame)));
-
-            if (audioChunks.length >= minChunkSize) {
-                console.log("sending audio")
-                sendAudioData(clientID, roomID, audioChunks);
-                audioChunks = [];
+                if (audioChunks.length >= minChunkSize) {
+                    console.log("sending audio, audioChunks length: ", audioChunks.length);
+                    sendAudioData(clientID, roomID, audioChunks);
+                    audioChunks = [];
+                }
             }
         },
         onSpeechEnd: () => {
-            if (audioChunks.length < minChunkSize) {
-                console.log("end of sentence detected, sending remaining audio");
+            if (audioChunks.length > 0 && audioChunks.length < minChunkSize) {
+                console.log("end of sentence detected, sending remaining audio, audioChunks length: ", audioChunks.length);
                 sendAudioData(clientID, roomID, audioChunks);
                 audioChunks = [];
             }
@@ -257,7 +256,12 @@ webrtc.addEventListener('join_room', async (e) => {
 })
 
 function sendAudioData(clientID, roomID, audioChunks) {
+    console.log("flattening audio chunks");
+    
     const flattenedAudio = audioChunks.flat(1);
+
+    console.log("flattened audio chunks length ", flattenedAudio.length);
+    
 
     const message = {
         clientId: clientID,
@@ -267,17 +271,18 @@ function sendAudioData(clientID, roomID, audioChunks) {
     
     webSocket.send(JSON.stringify(message));
     console.log(message);
+    console.log("audio sent");
+    
 }
 
 function initWebSocket() {
     const webSocket = new WebSocket('ws://localhost:3000');
 
     webSocket.onmessage = event => {
-    console.log('Message from server:', event.data);
-    let transcribed_text = event.data;
+        console.log('Message from server:', event.data);
+        let transcribed_text = event.data;
 
-    document.getElementById('transcriptionText').innerText += " " + transcribed_text;
-
+        document.getElementById('transcriptionText').innerText += " " + transcribed_text;
     };
 
     webSocket.onopen = () => {
