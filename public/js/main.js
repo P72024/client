@@ -36,6 +36,8 @@ const pcConfig = {
     ],
 };
 
+let MicVAD = null;
+
 const webSocket = initWebSocket()
 
 /**
@@ -90,7 +92,7 @@ webrtc.addEventListener('leftRoom', (e) => {
     document.querySelector('#transcriptionText').innerText = '';
     document.getElementById('clienID').innerText = '';
     notify(`Left the room ${room}`);
-    recorder.stop();
+    MicVAD.destroy();
     webSocket.close();
 });
 
@@ -98,21 +100,17 @@ webrtc.addEventListener('leftRoom', (e) => {
  * Get local media
  */
 
-let audioOnlyStream;
-let recorder;
-
 webrtc
     .getLocalStream(true, {width: 640, height: 480})
     .then((stream) => {
         const audioTracks = stream.getAudioTracks()
-        audioOnlyStream = new MediaStream(audioTracks);
         localVideo.srcObject = stream
     });
 
 webrtc.addEventListener('kicked', () => {
     document.querySelector('h1').textContent = 'You were kicked out';
     videoGrid.innerHTML = '';
-    recorder.stop();
+    MicVAD.destroy();
     webSocket.close();
 });
 
@@ -171,6 +169,20 @@ webrtc.addEventListener('removeUser', (e) => {
     document.getElementById(socketId).remove();
 });
 
+document.querySelector('#mute').addEventListener('change', (e) => {
+    console.log(e.target.checked);
+    if (e.target.checked) {
+        webrtc.localStream.getAudioTracks()[0].enabled = true
+        MicVAD.pause();
+        console.log("Muted");
+    }
+    else {
+        webrtc.localStream.getAudioTracks()[0].enabled = false
+        MicVAD.start();
+        console.log("Unmuted");
+    }
+});
+
 /**
  * Handle errors
  */
@@ -191,7 +203,9 @@ webrtc.addEventListener('notification', (e) => {
     notify(notif);
 });
 
-webrtc.addEventListener('join_room', (e) => {
+webrtc.addEventListener('join_room', async (e) => {
+    console.log(e.detail.roomId);
+
     console.log("join_room");
 
     const clientID = webrtc.myId;
@@ -203,32 +217,65 @@ webrtc.addEventListener('join_room', (e) => {
     console.log(clientID)
 
 
-    document.getElementById('clienID').innerText = clientID ;
-    document.getElementById('roomID').innerText = roomID ;
+    document.getElementById('clienID').innerText = clientID;
+    document.getElementById('roomID').innerText = roomID;
+    
+    /**
+        https://github.com/ricky0123/vad  TODO: cite this
+    */
 
-    recorder = new MediaRecorder(audioOnlyStream);
+    let audioChunks = [];
+    const minChunkSize = 16;
+    const speechThreshold = 0.8;
 
-    recorder.ondataavailable = async event => { 
-            
-        const arrayBuffer = await event.data.arrayBuffer();
+    MicVAD = await vad.MicVAD.new({
+        onSpeechStart: () => {
+            console.log("Speech start detected")
+        },
+        onFrameProcessed: (probabilities, audioFrame) => {
+            if (probabilities.isSpeech > speechThreshold) {
+                audioChunks.push(Array.from(new Float32Array(audioFrame)));
 
-        const message = {
-            clientId: clientID,
-            audioData: Array.from(new Uint8Array(arrayBuffer)),
-            roomId: roomID,
-            type: "audio"
-        };
+                if (audioChunks.length >= minChunkSize) {
+                    console.log("sending audio, audioChunks length: ", audioChunks.length);
+                    sendAudioData(clientID, roomID, audioChunks);
+                    audioChunks = [];
+                }
+            }
+        },
+        onSpeechEnd: () => {
+            if (audioChunks.length > 0 && audioChunks.length < minChunkSize) {
+                console.log("end of sentence detected, sending remaining audio, audioChunks length: ", audioChunks.length);
+                sendAudioData(clientID, roomID, audioChunks);
+                audioChunks = [];
+            }
+        }
+    });
 
-        console.log("Sending message to server: ", message);
-        webSocket.send(JSON.stringify(message));
-    };
-
-    recorder.start(800);
+    MicVAD.start();
 })
 
-function initWebSocket() {
-    const webSocket = new WebSocket('http://localhost:3000');
+function sendAudioData(clientID, roomID, audioChunks) {
+    console.log("flattening audio chunks");
     
+    const flattenedAudio = audioChunks.flat(1);
+
+    console.log("flattened audio chunks length ", flattenedAudio.length);
+
+    const message = {
+        clientId: clientID,
+        audioData: Array.from(new Float32Array(flattenedAudio)),
+        roomId: roomID,
+        type: "audio"
+    };
+
+    console.log("Sending message to server");
+    webSocket.send(JSON.stringify(message));
+}
+
+function initWebSocket() {
+    const webSocket = new WebSocket('ws://localhost:3000');
+
     webSocket.onmessage = event => {
         const data = JSON.parse(event.data)
         console.log('Message from server:', data);
@@ -419,5 +466,7 @@ function getTranscribedText(data) {
 }
 
 window.onbeforeunload = function() {
+    MicVAD.destroy();
     webSocket.close();
+    webrtc.leaveRoom();
 }

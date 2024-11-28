@@ -34,6 +34,8 @@
         <div class="videoconference-container">
             <div id="localVideo-wrapper">
                 <p class="video-label">You</p>
+                <label for="mute">Mute</label>
+                <input type="checkbox" id="mute">
                 <div id="localVideo-container">
                     <video autoplay playsinline muted></video>
                 </div>
@@ -45,6 +47,8 @@
             </div>
         </div>
 
+        <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.2/dist/ort.js"></script>
+        <script src="https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.19/dist/bundle.min.js"></script>
         <script src="/socket.io/socket.io.js"></script>
         <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
         <script src="js/webrtc.js"></script>
