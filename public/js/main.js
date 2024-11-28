@@ -1,7 +1,5 @@
 'use strict';
 
-const socket = io.connect();
-
 const localVideo = document.querySelector('#localVideo-container video');
 const videoGrid = document.querySelector('#videoGrid');
 const notification = document.querySelector('#notification');
@@ -40,10 +38,12 @@ const pcConfig = {
 
 let MicVAD = null;
 
+const webSocket = initWebSocket()
+
 /**
  * Initialize webrtc
  */
-const webrtc = new Webrtc(socket, pcConfig, {
+const webrtc = new Webrtc(webSocket, pcConfig, {
     log: true,
     warn: true,
     error: true,
@@ -99,8 +99,6 @@ webrtc.addEventListener('leftRoom', (e) => {
 /**
  * Get local media
  */
-
-let webSocket;
 
 webrtc
     .getLocalStream(true, {width: 640, height: 480})
@@ -209,16 +207,18 @@ webrtc.addEventListener('join_room', async (e) => {
     console.log(e.detail.roomId);
 
     console.log("join_room");
-    console.log("CLIENT ID:")
-    console.log(webrtc.socket.id);
 
-    const clientID = webrtc.socket.id;
+    const clientID = webrtc.myId;
     const roomID = e.detail.roomId; 
+    console.log("ROOM ID:")
+    console.log(roomID)
+
+    console.log("CLIENT ID:")
+    console.log(clientID)
+
 
     document.getElementById('clienID').innerText = clientID;
     document.getElementById('roomID').innerText = roomID;
-
-    webSocket = initWebSocket();
     
     /**
         https://github.com/ricky0123/vad  TODO: cite this
@@ -261,43 +261,208 @@ function sendAudioData(clientID, roomID, audioChunks) {
     const flattenedAudio = audioChunks.flat(1);
 
     console.log("flattened audio chunks length ", flattenedAudio.length);
-    
 
     const message = {
         clientId: clientID,
         audioData: Array.from(new Float32Array(flattenedAudio)),
-        roomId: roomID
+        roomId: roomID,
+        type: "audio"
     };
-    
+
+    console.log("Sending message to server");
     webSocket.send(JSON.stringify(message));
-    console.log(message);
-    console.log("audio sent");
-    
 }
 
 function initWebSocket() {
     const webSocket = new WebSocket('ws://localhost:3000');
 
     webSocket.onmessage = event => {
-        console.log('Message from server:', event.data);
-        let transcribed_text = event.data;
-
-        document.getElementById('transcriptionText').innerText += " " + transcribed_text;
+        const data = JSON.parse(event.data)
+        console.log('Message from server:', data);
+        switch (data.type) {
+            case "created":
+                createRoom(data)
+                break
+            case "joined":
+                joinedRoom(data)
+                break
+            case "left room":
+                leaveRoom(data)
+                break
+            case "join":
+                joinRoom(data)
+                break
+            case "ready":
+                ready(data)
+                break
+            case "kickout":
+                kickout(data)
+                break
+            case "message":
+                message(data)
+                break
+            case "get id":
+                getId(data)
+                break
+            case "transcribed text":
+                getTranscribedText(data)
+                break
+            default:
+                console.log("Incorrect type on message: ", data)
+                break
+        }
     };
 
     webSocket.onopen = () => {
         console.log('Connected to server');
+        webSocket.send(JSON.stringify({ type: "create id" }));
     };
-
+    
     webSocket.onclose = event => {
         console.log('Disconnected from server:', event.code, event.reason);
     };
-
+    
     webSocket.onerror = error => {
         console.error('Error:', error);
     };
     
     return webSocket;
+}
+
+function createRoom(data) {
+    const roomID = data.message.room_id;
+    webrtc.room = roomID;
+    webrtc._myId = data.message.client_id;
+    webrtc.isInitiator = true;
+    webrtc._isAdmin = true;
+
+    webrtc._emit('createdRoom', { roomId: roomID });
+}
+
+function joinedRoom(data) {
+    const roomID = data.message.room_id;
+    webrtc.log('joined: ' + roomID);
+
+    webrtc.room = roomID;
+    webrtc.isReady = true;
+    webrtc._myId = data.message.client_id;
+
+    webrtc._emit('joinedRoom', { roomId: roomID });
+}
+
+function leaveRoom(data) {
+    const roomID = data.message;
+    if (roomID === webrtc.room) {
+        webrtc.warn(`Left the room ${roomID}`);
+
+        webrtc.room = null;
+        webrtc._removeUser();
+        webrtc._emit('leftRoom', {
+            roomId: roomID,
+        });
+    }
+}
+
+function joinRoom(data) {
+    const roomID = data.message;
+
+    webrtc.log('Incoming request to join room: ' + roomID);
+
+    webrtc.isReady = true;
+
+    webrtc.dispatchEvent(new Event('newJoin'));
+}
+
+function ready(data) {
+    const user = data.message;
+    webrtc.log('User: ', user, ' joined room');
+
+    if (user !== webrtc._myId && webrtc.inCall) webrtc.isInitiator = true;
+}
+
+function kickout(data) {
+    const socketId = data.message;
+    webrtc.log('kickout user: ', socketId);
+
+    if (socketId === webrtc._myId) {
+        // You got kicked out
+        webrtc.dispatchEvent(new Event('kicked'));
+        webrtc._removeUser();
+    } else {
+        // Someone else got kicked out
+        webrtc._removeUser(socketId);
+    }
+}
+function message(data) {
+    const message = data.message.message;
+    const socketId = data.message.client_id;
+    webrtc.log('From', socketId, ' received:', message.type);
+    // Participant leaves
+    if (message.type === 'leave') {
+        webrtc.log(socketId, 'Left the call.');
+        webrtc._removeUser(socketId);
+        webrtc.isInitiator = true;
+
+        webrtc._emit('userLeave', { socketId: socketId });
+        return;
+    }
+
+    // Avoid dublicate connections
+    if (
+        webrtc.pcs[socketId] &&
+        webrtc.pcs[socketId].connectionState === 'connected'
+    ) {
+        webrtc.log(
+            'Connection with ',
+            socketId,
+            'is already established'
+        );
+        return;
+    }
+
+    switch (message.type) {
+        case 'gotstream': // user is ready to share their stream
+            webrtc._connect(socketId);
+            break;
+        case 'offer': // got connection offer
+            if (!webrtc.pcs[socketId]) {
+                webrtc._connect(socketId);
+            }
+            webrtc.pcs[socketId].setRemoteDescription(
+                new RTCSessionDescription(message)
+            );
+            webrtc._answer(socketId);
+            break;
+        case 'answer': // got answer for sent offer
+            webrtc.pcs[socketId].setRemoteDescription(
+                new RTCSessionDescription(message)
+            );
+            break;
+        case 'candidate': // received candidate sdp
+            webrtc.inCall = true;
+            const candidate = new RTCIceCandidate({
+                sdpMLineIndex: message.label,
+                candidate: message.candidate,
+            });
+            webrtc.pcs[socketId].addIceCandidate(candidate);
+            break;
+    }
+}
+
+function getId(data){
+    webrtc._myId = data.message;
+}
+
+function getTranscribedText(data) {
+    let transcribedText = data.message;
+
+    const transcriptionTextElement = document.getElementById('transcriptionText');
+    if (transcriptionTextElement) {
+        transcriptionTextElement.innerText += " " + transcribedText;
+    }
+    else {
+        console.log("No element with id: transcriptionText")
+    }
 }
 
 window.onbeforeunload = function() {
