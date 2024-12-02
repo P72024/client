@@ -99,7 +99,7 @@ class Webrtc extends EventTarget {
             return;
         }
         this.isInitiator = false;
-        this.socket.send(JSON.stringify({ type: 'leave room', roomId: this.roomId(), clientId: this.myId }));
+        this.socket.send(JSON.stringify({ type: 'leave room', roomId: this.roomId, clientId: this.myId }));
     }
 
     // Get local stream
