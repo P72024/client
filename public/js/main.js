@@ -5,6 +5,7 @@ const videoGrid = document.querySelector('#videoGrid');
 const notification = document.querySelector('#notification');
 const notify = (message) => {
     notification.innerHTML = message;
+
 };
 
 const pcConfig = {
@@ -90,7 +91,7 @@ webrtc.addEventListener('leftRoom', (e) => {
     // Clear the values
     document.querySelector('#roomID').innerText = '';
     document.querySelector('#transcriptionText').innerText = '';
-    document.getElementById('clienID').innerText = '';
+    document.getElementById('clientID').innerText = '';
     notify(`Left the room ${room}`);
     MicVAD.destroy();
     webSocket.close();
@@ -172,12 +173,12 @@ webrtc.addEventListener('removeUser', (e) => {
 document.querySelector('#mute').addEventListener('change', (e) => {
     console.log(e.target.checked);
     if (e.target.checked) {
-        webrtc.localStream.getAudioTracks()[0].enabled = true
+        webrtc.localStream.getAudioTracks()[0].enabled = false
         MicVAD.pause();
         console.log("Muted");
     }
     else {
-        webrtc.localStream.getAudioTracks()[0].enabled = false
+        webrtc.localStream.getAudioTracks()[0].enabled = true
         MicVAD.start();
         console.log("Unmuted");
     }
@@ -217,7 +218,7 @@ webrtc.addEventListener('join_room', async (e) => {
     console.log(clientID)
 
 
-    document.getElementById('clienID').innerText = clientID;
+    document.getElementById('clientID').innerText = clientID;
     document.getElementById('roomID').innerText = roomID;
     
     /**
@@ -232,7 +233,7 @@ webrtc.addEventListener('join_room', async (e) => {
         onSpeechStart: () => {
             console.log("Speech start detected")
         },
-        onFrameProcessed: (probabilities, audioFrame) => {
+        onFrameProcessed: (probabilities, audioFrame) => {    
             if (probabilities.isSpeech > speechThreshold) {
                 audioChunks.push(Array.from(new Float32Array(audioFrame)));
 
@@ -251,9 +252,12 @@ webrtc.addEventListener('join_room', async (e) => {
             }
         }
     });
-
+   
     MicVAD.start();
 })
+
+let sequenceNumber = 0;
+var audioTimestamps = [];
 
 function sendAudioData(clientID, roomID, audioChunks) {
     console.log("flattening audio chunks");
@@ -262,16 +266,21 @@ function sendAudioData(clientID, roomID, audioChunks) {
 
     console.log("flattened audio chunks length ", flattenedAudio.length);
 
+    audioTimestamps.push((Date.now(), sequenceNumber));
+
     const message = {
         clientId: clientID,
         audioData: Array.from(new Float32Array(flattenedAudio)),
         roomId: roomID,
-        type: "audio"
+        type: "audio",
+        sequenceNumber: sequenceNumber++
     };
 
     console.log("Sending message to server");
     webSocket.send(JSON.stringify(message));
 }
+
+let sendTime = 0;
 
 function initWebSocket() {
     const webSocket = new WebSocket('ws://localhost:3000');
@@ -307,6 +316,11 @@ function initWebSocket() {
             case "transcribed text":
                 getTranscribedText(data)
                 break
+            case "round trip time":
+                const receiveTime = Date.now(); // Record the receive time
+                const roundTripTime  = receiveTime - sendTime; // Calculate latency
+                document.getElementById('roundtrip_time').innerText = `${roundTripTime} ms`;
+                break
             default:
                 console.log("Incorrect type on message: ", data)
                 break
@@ -316,6 +330,8 @@ function initWebSocket() {
     webSocket.onopen = () => {
         console.log('Connected to server');
         webSocket.send(JSON.stringify({ type: "create id" }));
+        sendTime = Date.now();
+        webSocket.send(JSON.stringify({ type: "round trip time"}));
     };
     
     webSocket.onclose = event => {
@@ -463,6 +479,10 @@ function getTranscribedText(data) {
     else {
         console.log("No element with id: transcriptionText")
     }
+
+    const transcriptionProcessingTime = // calculate transcription processing time
+
+    document.getElementById('transcription_process_time').innerText = `${transcriptionProcessingTime} ms`;
 }
 
 window.onbeforeunload = function() {
