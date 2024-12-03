@@ -104,7 +104,6 @@ webrtc.addEventListener('leftRoom', (e) => {
 webrtc
     .getLocalStream(true, {width: 640, height: 480})
     .then((stream) => {
-        const audioTracks = stream.getAudioTracks()
         localVideo.srcObject = stream
     });
 
@@ -226,7 +225,7 @@ webrtc.addEventListener('join_room', async (e) => {
     */
 
     let audioChunks = [];
-    const minChunkSize = 16;
+    const minChunkSize = 16; 
     const speechThreshold = 0.8;
 
     MicVAD = await vad.MicVAD.new({
@@ -256,9 +255,6 @@ webrtc.addEventListener('join_room', async (e) => {
     MicVAD.start();
 })
 
-let sequenceNumber = 0;
-var audioTimestamps = [];
-
 function sendAudioData(clientID, roomID, audioChunks) {
     console.log("flattening audio chunks");
     
@@ -266,21 +262,20 @@ function sendAudioData(clientID, roomID, audioChunks) {
 
     console.log("flattened audio chunks length ", flattenedAudio.length);
 
-    audioTimestamps.push((Date.now(), sequenceNumber));
-
     const message = {
         clientId: clientID,
         audioData: Array.from(new Float32Array(flattenedAudio)),
         roomId: roomID,
+        sentAt: Date.now(),
         type: "audio",
-        sequenceNumber: sequenceNumber++
     };
 
     console.log("Sending message to server");
     webSocket.send(JSON.stringify(message));
 }
 
-let sendTime = 0;
+let pingTimer = null;
+
 
 function initWebSocket() {
     const webSocket = new WebSocket('ws://localhost:3000');
@@ -316,10 +311,8 @@ function initWebSocket() {
             case "transcribed text":
                 getTranscribedText(data)
                 break
-            case "round trip time":
-                const receiveTime = Date.now(); // Record the receive time
-                const roundTripTime  = receiveTime - sendTime; // Calculate latency
-                document.getElementById('roundtrip_time').innerText = `${roundTripTime} ms`;
+            case "ping":
+                document.getElementById('metrics_ping').innerText = `${Date.now() - data.sentAt} ms`;
                 break
             default:
                 console.log("Incorrect type on message: ", data)
@@ -330,8 +323,10 @@ function initWebSocket() {
     webSocket.onopen = () => {
         console.log('Connected to server');
         webSocket.send(JSON.stringify({ type: "create id" }));
-        sendTime = Date.now();
-        webSocket.send(JSON.stringify({ type: "round trip time"}));
+
+        pingTimer = setInterval(() => {
+            webSocket.send(JSON.stringify({ type: "ping", sentAt: Date.now()}));
+        }, 3000);
     };
     
     webSocket.onclose = event => {
@@ -480,13 +475,20 @@ function getTranscribedText(data) {
         console.log("No element with id: transcriptionText")
     }
 
-    const transcriptionProcessingTime = // calculate transcription processing time
+    console.log(data);
+    
+    const latency = Math.round(data.receivedAt - data.sentAt);
+    const roundTripTime = Math.round(Date.now() - data.sentAt);
+    const transcriptionProcessingTime = Math.round(data.processingTime);
 
-    document.getElementById('transcription_process_time').innerText = `${transcriptionProcessingTime} ms`;
+    document.getElementById('metrics_latency').innerText = `${latency} ms`;
+    document.getElementById('metrics_round_trip_time').innerText = `${roundTripTime} ms`;
+    document.getElementById('metrics_transcription_process_time').innerText = `${transcriptionProcessingTime} ms`;
 }
 
 window.onbeforeunload = function() {
     MicVAD.destroy();
+    pingTimer && clearInterval(pingTimer);
     webSocket.close();
     webrtc.leaveRoom();
 }
