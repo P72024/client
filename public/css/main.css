@@ -228,4 +228,12 @@ button {
   transform: scale(1.02);
 }
 
+.file-upload-container {
+  display: flex;
+  align-items: center; /* Align items vertically in the center */
+  gap: 10px; /* Space between elements */
+}
 
+#progressBar {
+  margin-left: 10px; /* Add space between the button and progress text */
+}
