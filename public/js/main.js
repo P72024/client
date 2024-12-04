@@ -73,6 +73,8 @@ const setTitle = (status, e) => {
     notify(`Room ${room} was ${status}`);
     document.querySelector('h1').textContent = `Room: ${room}`;
     webrtc.gotStream();
+
+    document.querySelector('.file-upload-container').style.display = 'none'
 };
 webrtc.addEventListener('createdRoom', setTitle.bind(this, 'created'));
 webrtc.addEventListener('joinedRoom', setTitle.bind(this, 'joined'));
@@ -252,15 +254,16 @@ webrtc.addEventListener('join_room', async (e) => {
         }
     });
 
+
     MicVAD.start();
 })
 
 function sendAudioData(clientID, roomID, audioChunks) {
-    console.log("flattening audio chunks");
+    // console.log("flattening audio chunks");
     
     const flattenedAudio = audioChunks.flat(1);
 
-    console.log("flattened audio chunks length ", flattenedAudio.length);
+    // console.log("flattened audio chunks length ", flattenedAudio.length);
 
     const message = {
         clientId: clientID,
@@ -269,7 +272,7 @@ function sendAudioData(clientID, roomID, audioChunks) {
         type: "audio"
     };
 
-    console.log("Sending message to server");
+    // console.log("Sending message to server");
     webSocket.send(JSON.stringify(message));
 }
 
@@ -348,6 +351,7 @@ function joinedRoom(data) {
     webrtc._myId = data.message.client_id;
 
     webrtc._emit('joinedRoom', { roomId: roomID });
+
 }
 
 function leaveRoom(data) {
