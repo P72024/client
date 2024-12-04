@@ -219,6 +219,19 @@ webrtc.addEventListener('join_room', async (e) => {
 
     document.getElementById('clientID').innerText = clientID;
     document.getElementById('roomID').innerText = roomID;
+
+    const updateMessage = "Measuring...";
+
+    document.getElementById('metrics_latency').innerText = updateMessage;
+    document.getElementById('metrics_round_trip_time').innerText = updateMessage;
+    document.getElementById('metrics_audio_queue_wait_time').innerText = updateMessage;
+    document.getElementById('metrics_total_transcription_time').innerText = updateMessage;
+    document.getElementById('metrics_transcription_time').innerText = updateMessage;
+    document.getElementById('metrics_update_context_time').innerText = updateMessage;
+    document.getElementById('metrics_curr_vad_latency').innerText = updateMessage;
+    document.getElementById('metrics_avg_vad_latency').innerText = updateMessage;
+    document.getElementById('metrics_min_vad_latency').innerText = updateMessage;
+    document.getElementById('metrics_max_vad_latency').innerText = updateMessage;
     
     /**
         https://github.com/ricky0123/vad  TODO: cite this
@@ -265,6 +278,7 @@ function measureVadLatency() {
     if (speechStartTimestamp !== null) {
         const currentLatency = performance.now() - speechStartTimestamp;
         
+        document.getElementById('metrics_curr_vad_latency').innerText = `${currentLatency.toFixed(2)} ms`;
         latencyMeasurements.push(currentLatency);
         
         if (latencyMeasurements.length >= 5) {
@@ -272,7 +286,9 @@ function measureVadLatency() {
             const minLatency = Math.min(...latencyMeasurements);
             const maxLatency = Math.max(...latencyMeasurements);
             
-            console.log(`VAD Latency - Avg: ${avgLatency.toFixed(2)}ms, Min: ${minLatency.toFixed(2)}ms, Max: ${maxLatency.toFixed(2)}ms`);
+            document.getElementById('metrics_avg_vad_latency').innerText = `${avgLatency.toFixed(2)} ms`;
+            document.getElementById('metrics_min_vad_latency').innerText = `${minLatency.toFixed(2)} ms`;
+            document.getElementById('metrics_max_vad_latency').innerText = `${maxLatency.toFixed(2)} ms`;
             
             latencyMeasurements = [];
         }
@@ -361,6 +377,7 @@ function initWebSocket() {
     
     webSocket.onerror = error => {
         console.error('Error:', error);
+        reset();
     };
     
     return webSocket;
@@ -516,7 +533,9 @@ function getTranscribedText(data) {
     document.getElementById('metrics_audio_queue_wait_time').innerText = `${audioQueueWaitTime} ms`;
 }
 
-window.onbeforeunload = function() {
+window.onbeforeunload = reset;
+
+function reset() {
     MicVAD.destroy();
     pingTimer && clearInterval(pingTimer);
     webSocket.close();
