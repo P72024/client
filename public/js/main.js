@@ -231,8 +231,11 @@ webrtc.addEventListener('join_room', async (e) => {
     MicVAD = await vad.MicVAD.new({
         onSpeechStart: () => {
             console.log("Speech start detected")
+            speechStartTimestamp = performance.now();
         },
-        onFrameProcessed: (probabilities, audioFrame) => {    
+        onFrameProcessed: (probabilities, audioFrame) => {   
+            measureVadLatency();
+
             if (probabilities.isSpeech > speechThreshold) {
                 audioChunks.push(Array.from(new Float32Array(audioFrame)));
 
@@ -254,6 +257,29 @@ webrtc.addEventListener('join_room', async (e) => {
    
     MicVAD.start();
 })
+
+let latencyMeasurements = [];
+let speechStartTimestamp = null;
+
+function measureVadLatency() {
+    if (speechStartTimestamp !== null) {
+        const currentLatency = performance.now() - speechStartTimestamp;
+        
+        latencyMeasurements.push(currentLatency);
+        
+        if (latencyMeasurements.length >= 5) {
+            const avgLatency = latencyMeasurements.reduce((a, b) => a + b, 0) / latencyMeasurements.length;
+            const minLatency = Math.min(...latencyMeasurements);
+            const maxLatency = Math.max(...latencyMeasurements);
+            
+            console.log(`VAD Latency - Avg: ${avgLatency.toFixed(2)}ms, Min: ${minLatency.toFixed(2)}ms, Max: ${maxLatency.toFixed(2)}ms`);
+            
+            latencyMeasurements = [];
+        }
+        
+        speechStartTimestamp = null;
+    }
+}
 
 function sendAudioData(clientID, roomID, audioChunks) {
     console.log("flattening audio chunks");
@@ -474,16 +500,20 @@ function getTranscribedText(data) {
     else {
         console.log("No element with id: transcriptionText")
     }
-
-    console.log(data);
     
     const latency = Math.round(data.receivedAt - data.sentAt);
     const roundTripTime = Math.round(Date.now() - data.sentAt);
-    const transcriptionProcessingTime = Math.round(data.processingTime);
+    const totalTranscriptionProcessingTime = Math.round(data.processingTime.total);
+    const transcriptionTime = Math.round(data.processingTime.transcription_time);
+    const updateContextTime = Math.round(data.processingTime.update_context_time);
+    const audioQueueWaitTime = Math.round(data.queueWaitTime);
 
     document.getElementById('metrics_latency').innerText = `${latency} ms`;
     document.getElementById('metrics_round_trip_time').innerText = `${roundTripTime} ms`;
-    document.getElementById('metrics_transcription_process_time').innerText = `${transcriptionProcessingTime} ms`;
+    document.getElementById('metrics_total_transcription_time').innerText = `${totalTranscriptionProcessingTime} ms`;
+    document.getElementById('metrics_transcription_time').innerText = `${transcriptionTime} ms`;
+    document.getElementById('metrics_update_context_time').innerText = `${updateContextTime} ms`;
+    document.getElementById('metrics_audio_queue_wait_time').innerText = `${audioQueueWaitTime} ms`;
 }
 
 window.onbeforeunload = function() {

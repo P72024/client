@@ -229,3 +229,36 @@ button {
 }
 
 
+/* Initial hidden state */
+#metricsPanel {
+  position: fixed;
+  top: 40px;
+  left: -250px; /* Initially hidden off-screen */
+  background-color: #f0f0f0;
+  padding: 10px 20px;
+  border: 1px solid #ccc;
+  border-radius: 5px;
+  box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
+  z-index: 1000;
+  transition: left 0.3s ease;
+  width: 200px;
+}
+
+/* Toggle button */
+#toggleButton {
+  position: fixed;
+  top: 10px;
+  left: 10px;
+  background-color: #3c3c5c;
+  color: white;
+  border: none;
+  border-radius: 3px;
+  padding: 5px;
+  cursor: pointer;
+  z-index: 1001;
+}
+
+/* Expanded state */
+#metricsPanel.expanded {
+  left: 10px;
+}
