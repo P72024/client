@@ -507,12 +507,35 @@ function getId(data){
     webrtc._myId = data.message;
 }
 
+
+const transcriptionContainer = document.querySelector('.transcription_box');
+let isUserScrolling = false; // To track if the user has scrolled up manually
+
+transcriptionContainer.addEventListener('scroll', () => {
+    if (!isScrolledToBottom()) {
+        isUserScrolling = true; // User has scrolled up
+    } else {
+        isUserScrolling = false; // User is at the bottom
+    }
+});
+
+function isScrolledToBottom() {
+    return transcriptionContainer.scrollHeight - transcriptionContainer.scrollTop === transcriptionContainer.clientHeight;
+}
+
+function scrollToBottom() {
+    if (!isUserScrolling) {
+        transcriptionContainer.scrollTop = transcriptionContainer.scrollHeight;
+    }
+}
+
 function getTranscribedText(data) {
     let transcribedText = data.message;
 
     const transcriptionTextElement = document.getElementById('transcriptionText');
     if (transcriptionTextElement) {
         transcriptionTextElement.innerText += " " + transcribedText;
+        scrollToBottom();
     }
     else {
         console.log("No element with id: transcriptionText")
