@@ -1,7 +1,5 @@
-const minChunkSizeArray = [8, 12, 16];
-const speechThresholdArray = [0.75, 0.8, 0.85];
-
 document.getElementById('processFileBtn').addEventListener('click', async () => {
+    const {minChunkSizeArray, speechThresholdArray} = await fetchConfig()
 
     document.getElementById('processFileBtn').disabled = true
     document.getElementById('joinBtn').disabled = true
@@ -121,4 +119,26 @@ async function fileExists(filePath) {
     } catch {
         return false;
     }
+}
+
+
+async function fetchConfig() {
+    return fetch('/config.json')
+        .then((response) => {
+            if (!response.ok) {
+                throw new Error(`Failed to fetch config.json: ${response.statusText}`);
+            }
+            return response.json();
+        })
+        .then((config) => {
+            const minChunkSizeArray = config.grid_search.parameters.min_chunk_size;
+            const speechThresholdArray = config.grid_search.parameters.VAD_filter_threshold;
+            
+            // Return the arrays in an object
+            return { minChunkSizeArray, speechThresholdArray };
+        })
+        .catch((error) => {
+            console.error('Error fetching config.json:', error);
+            throw error; // Re-throw the error to handle it in the calling code
+        });
 }

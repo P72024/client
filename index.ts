@@ -16,6 +16,7 @@ app.get('*', (req: Request, res: Response, next: NextFunction) => {
 
 app.use(express.static(path.join(__dirname, 'public')));
 app.use(express.static(path.join(__dirname, 'node_modules')));
+app.use(express.static(path.join(__dirname, 'evaluation')));
 
 const server = http.createServer(app);
 server.listen(port, () => {
