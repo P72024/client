@@ -289,6 +289,12 @@ class Webrtc extends EventTarget {
         this._emit('removeUser', { socketId });
     }
 
+    kicked() {
+        if (this.room) {
+            this.room = null;
+        }
+    }
+
     kickUser(socketId) {
         if (!this.isAdmin) {
             this._emit('notification', {
