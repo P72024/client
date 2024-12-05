@@ -11,6 +11,9 @@
     
         <div class="center-wrapper">
             <div class="buttonscontainer">
+                <label for="screenName">Screen name</label>
+                <input type="text" id="screenName" placeholder="Screen name">
+                <button id="confirmNameBtn">Confirm</button>
                 <label for="roomId">Room ID</label>
                 <input id="roomId" type="text" />
                 <button id="joinBtn">Join</button>
@@ -64,6 +67,8 @@
         </script>
 
         <div class="info-container">
+            <p>Screen name:</p>
+            <p id="screenNameText"></p>
             <p>Room ID:</p>
             <p id="roomID"></p>
             <p>Client ID:</p>
