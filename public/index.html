@@ -21,13 +21,58 @@
             </div>
         </div>
 
+        
+        <!-- Toggle button -->
+        <button id="toggleButton">→</button>
+
+        <!-- Metrics Panel -->
+        <div id="metricsPanel">
+            <div style="flex-direction: column; color: black;">
+                <b>Ping</b>
+                <p id="metrics_ping">Connecting to server...</p>
+                <b>Latency</b>
+                <p id="metrics_latency">Disconnected...</p>
+                <b>Round trip time</b>
+                <p id="metrics_round_trip_time">Disconnected...</p>
+                <b>Audio queue wait time</b>
+                <p id="metrics_audio_queue_wait_time">Disconnected...</p>
+                <b>Total transcription time</b>
+                <p id="metrics_total_transcription_time">Disconnected...</p>
+                <b>Transcription time</b>
+                <p id="metrics_transcription_time">Disconnected...</p>
+                <b>Update context time</b>
+                <p id="metrics_update_context_time">Disconnected...</p>
+                <b>VAD Latency</b><br><br>
+                <b>Current</b><p id="metrics_curr_vad_latency">Disconnected...</p>
+                <b>Average</b><p id="metrics_avg_vad_latency">Disconnected...</p>
+                <b>Minimum</b><p id="metrics_min_vad_latency">Disconnected...</p>
+                <b>Maximum</b><p id="metrics_max_vad_latency">Disconnected...</p>                
+            </div>
+        </div>
+
+        <script>
+            const metricsPanel = document.getElementById('metricsPanel');
+            const toggleButton = document.getElementById('toggleButton');
+        
+            toggleButton.addEventListener('click', function() {
+                // Toggle expanded class
+                metricsPanel.classList.toggle('expanded');
+                // Update button text
+                if (metricsPanel.classList.contains('expanded')) {
+                    toggleButton.textContent = '←';
+                } else {
+                    toggleButton.textContent = '→';
+                }
+            });
+        </script>
+
         <div class="info-container">
             <p>Screen name:</p>
             <p id="screenNameText"></p>
             <p>Room ID:</p>
             <p id="roomID"></p>
             <p>Client ID:</p>
-            <p id="clienID"></p>
+            <p id="clientID"></p>
         </div>
 
         <div class="transcription_box">

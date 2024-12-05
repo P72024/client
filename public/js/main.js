@@ -17,6 +17,7 @@ const videoGrid = document.querySelector('#videoGrid');
 const notification = document.querySelector('#notification');
 const notify = (message) => {
     notification.innerHTML = message;
+
 };
 
 const pcConfig = {
@@ -102,10 +103,9 @@ webrtc.addEventListener('leftRoom', (e) => {
     // Clear the values
     document.querySelector('#roomID').innerText = '';
     document.querySelector('#transcriptionText').innerText = '';
-    document.getElementById('clienID').innerText = '';
+    document.getElementById('clientID').innerText = '';
     notify(`Left the room ${room}`);
     MicVAD.destroy();
-    webSocket.close();
 });
 
 /**
@@ -115,7 +115,6 @@ webrtc.addEventListener('leftRoom', (e) => {
 webrtc
     .getLocalStream(true, {width: 640, height: 480})
     .then((stream) => {
-        const audioTracks = stream.getAudioTracks()
         localVideo.srcObject = stream
     });
 
@@ -184,12 +183,12 @@ webrtc.addEventListener('removeUser', (e) => {
 document.querySelector('#mute').addEventListener('change', (e) => {
     console.log(e.target.checked);
     if (e.target.checked) {
-        webrtc.localStream.getAudioTracks()[0].enabled = true
+        webrtc.localStream.getAudioTracks()[0].enabled = false
         MicVAD.pause();
         console.log("Muted");
     }
     else {
-        webrtc.localStream.getAudioTracks()[0].enabled = false
+        webrtc.localStream.getAudioTracks()[0].enabled = true
         MicVAD.start();
         console.log("Unmuted");
     }
@@ -229,22 +228,38 @@ webrtc.addEventListener('join_room', async (e) => {
     console.log(clientID)
 
 
-    document.getElementById('clienID').innerText = clientID;
+    document.getElementById('clientID').innerText = clientID;
     document.getElementById('roomID').innerText = roomID;
+
+    const updateMessage = "Measuring...";
+
+    document.getElementById('metrics_latency').innerText = updateMessage;
+    document.getElementById('metrics_round_trip_time').innerText = updateMessage;
+    document.getElementById('metrics_audio_queue_wait_time').innerText = updateMessage;
+    document.getElementById('metrics_total_transcription_time').innerText = updateMessage;
+    document.getElementById('metrics_transcription_time').innerText = updateMessage;
+    document.getElementById('metrics_update_context_time').innerText = updateMessage;
+    document.getElementById('metrics_curr_vad_latency').innerText = updateMessage;
+    document.getElementById('metrics_avg_vad_latency').innerText = updateMessage;
+    document.getElementById('metrics_min_vad_latency').innerText = updateMessage;
+    document.getElementById('metrics_max_vad_latency').innerText = updateMessage;
     
     /**
         https://github.com/ricky0123/vad  TODO: cite this
     */
 
     let audioChunks = [];
-    const minChunkSize = 16;
+    const minChunkSize = 16; 
     const speechThreshold = 0.8;
 
     MicVAD = await vad.MicVAD.new({
         onSpeechStart: () => {
             console.log("Speech start detected")
+            speechStartTimestamp = performance.now();
         },
-        onFrameProcessed: (probabilities, audioFrame) => {
+        onFrameProcessed: (probabilities, audioFrame) => {   
+            measureVadLatency();
+
             if (probabilities.isSpeech > speechThreshold) {
                 audioChunks.push(Array.from(new Float32Array(audioFrame)));
 
@@ -263,9 +278,35 @@ webrtc.addEventListener('join_room', async (e) => {
             }
         }
     });
-
+   
     MicVAD.start();
 })
+
+let latencyMeasurements = [];
+let speechStartTimestamp = null;
+
+function measureVadLatency() {
+    if (speechStartTimestamp !== null) {
+        const currentLatency = performance.now() - speechStartTimestamp;
+        
+        document.getElementById('metrics_curr_vad_latency').innerText = `${currentLatency.toFixed(2)} ms`;
+        latencyMeasurements.push(currentLatency);
+        
+        if (latencyMeasurements.length >= 5) {
+            const avgLatency = latencyMeasurements.reduce((a, b) => a + b, 0) / latencyMeasurements.length;
+            const minLatency = Math.min(...latencyMeasurements);
+            const maxLatency = Math.max(...latencyMeasurements);
+            
+            document.getElementById('metrics_avg_vad_latency').innerText = `${avgLatency.toFixed(2)} ms`;
+            document.getElementById('metrics_min_vad_latency').innerText = `${minLatency.toFixed(2)} ms`;
+            document.getElementById('metrics_max_vad_latency').innerText = `${maxLatency.toFixed(2)} ms`;
+            
+            latencyMeasurements = [];
+        }
+        
+        speechStartTimestamp = null;
+    }
+}
 
 function sendAudioData(clientID, roomID, audioChunks) {
     console.log("flattening audio chunks");
@@ -279,12 +320,16 @@ function sendAudioData(clientID, roomID, audioChunks) {
         screenName: screenName || clientID,
         audioData: Array.from(new Float32Array(flattenedAudio)),
         roomId: roomID,
-        type: "audio"
+        sentAt: Date.now(),
+        type: "audio",
     };
 
     console.log("Sending message to server");
     webSocket.send(JSON.stringify(message));
 }
+
+let pingTimer = null;
+
 
 function initWebSocket() {
     const webSocket = new WebSocket('ws://localhost:3000');
@@ -320,6 +365,9 @@ function initWebSocket() {
             case "transcribed text":
                 getTranscribedText(data)
                 break
+            case "ping":
+                document.getElementById('metrics_ping').innerText = `${Date.now() - data.sentAt} ms`;
+                break
             default:
                 console.log("Incorrect type on message: ", data)
                 break
@@ -329,6 +377,10 @@ function initWebSocket() {
     webSocket.onopen = () => {
         console.log('Connected to server');
         webSocket.send(JSON.stringify({ type: "create id" }));
+
+        pingTimer = setInterval(() => {
+            webSocket.send(JSON.stringify({ type: "ping", sentAt: Date.now()}));
+        }, 3000);
     };
     
     webSocket.onclose = event => {
@@ -337,6 +389,7 @@ function initWebSocket() {
     
     webSocket.onerror = error => {
         console.error('Error:', error);
+        reset();
     };
     
     return webSocket;
@@ -466,11 +519,33 @@ function getId(data){
     webrtc._myId = data.message;
 }
 
+
+const transcriptionContainer = document.querySelector('.transcription_box');
+let isUserScrolling = false; // To track if the user has scrolled up manually
+
+transcriptionContainer.addEventListener('scroll', () => {
+    if (!isScrolledToBottom()) {
+        isUserScrolling = true; // User has scrolled up
+    } else {
+        isUserScrolling = false; // User is at the bottom
+    }
+});
+
+function isScrolledToBottom() {
+    return transcriptionContainer.scrollHeight - transcriptionContainer.scrollTop === transcriptionContainer.clientHeight;
+}
+
+function scrollToBottom() {
+    if (!isUserScrolling) {
+        transcriptionContainer.scrollTop = transcriptionContainer.scrollHeight;
+    }
+}
+
 function getTranscribedText(data) {
     let transcribedText = data.message;
     let screenName = data.screen_name;
     const transcriptionTextElement = document.getElementById('transcriptionText');
-    const transcriptionBox = document.querySelector('.transcription_box');
+    
     if (transcriptionTextElement) {
         if(screenName !== lastScreenName){
             transcriptionTextElement.innerHTML += `<br><strong>${screenName}:</strong> ${transcribedText}`;
@@ -478,17 +553,32 @@ function getTranscribedText(data) {
         }else{
             transcriptionTextElement.innerHTML += ` ${transcribedText}`;
         }        
+        scrollToBottom();
     }
     else {
         console.log("No element with id: transcriptionText")
     }
-    if (transcriptionBox) {
-        transcriptionBox.scrollTop = transcriptionBox.scrollHeight;
-    }
+  
+    const latency = Math.round(data.receivedAt - data.sentAt);
+    const roundTripTime = Math.round(Date.now() - data.sentAt);
+    const totalTranscriptionProcessingTime = Math.round(data.processingTime.total);
+    const transcriptionTime = Math.round(data.processingTime.transcription_time);
+    const updateContextTime = Math.round(data.processingTime.update_context_time);
+    const audioQueueWaitTime = Math.round(data.queueWaitTime);
+
+    document.getElementById('metrics_latency').innerText = `${latency} ms`;
+    document.getElementById('metrics_round_trip_time').innerText = `${roundTripTime} ms`;
+    document.getElementById('metrics_total_transcription_time').innerText = `${totalTranscriptionProcessingTime} ms`;
+    document.getElementById('metrics_transcription_time').innerText = `${transcriptionTime} ms`;
+    document.getElementById('metrics_update_context_time').innerText = `${updateContextTime} ms`;
+    document.getElementById('metrics_audio_queue_wait_time').innerText = `${audioQueueWaitTime} ms`;
 }
 
-window.onbeforeunload = function() {
+window.onbeforeunload = reset;
+
+function reset() {
     MicVAD.destroy();
+    pingTimer && clearInterval(pingTimer);
     webSocket.close();
     webrtc.leaveRoom();
 }
