@@ -1,5 +1,17 @@
 'use strict';
 
+let screenName = '';
+let lastScreenName = '';
+
+document.getElementById('confirmNameBtn').addEventListener('click', () => {
+    screenName = document.getElementById('screenName').value;
+    if (screenName) {
+        document.getElementById('screenNameText').innerText = screenName;
+    } else {
+        alert('Please enter a screen name.');
+    }
+});
+
 const localVideo = document.querySelector('#localVideo-container video');
 const videoGrid = document.querySelector('#videoGrid');
 const notification = document.querySelector('#notification');
@@ -264,6 +276,7 @@ function sendAudioData(clientID, roomID, audioChunks) {
 
     const message = {
         clientId: clientID,
+        screenName: screenName || clientID,
         audioData: Array.from(new Float32Array(flattenedAudio)),
         roomId: roomID,
         type: "audio"
@@ -455,13 +468,22 @@ function getId(data){
 
 function getTranscribedText(data) {
     let transcribedText = data.message;
-
+    let screenName = data.screen_name;
     const transcriptionTextElement = document.getElementById('transcriptionText');
+    const transcriptionBox = document.querySelector('.transcription_box');
     if (transcriptionTextElement) {
-        transcriptionTextElement.innerText += " " + transcribedText;
+        if(screenName !== lastScreenName){
+            transcriptionTextElement.innerHTML += `<br><strong>${screenName}:</strong> ${transcribedText}`;
+            lastScreenName = screenName;
+        }else{
+            transcriptionTextElement.innerHTML += ` ${transcribedText}`;
+        }        
     }
     else {
         console.log("No element with id: transcriptionText")
+    }
+    if (transcriptionBox) {
+        transcriptionBox.scrollTop = transcriptionBox.scrollHeight;
     }
 }
 
