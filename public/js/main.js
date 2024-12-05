@@ -94,7 +94,6 @@ webrtc.addEventListener('leftRoom', (e) => {
     document.getElementById('clientID').innerText = '';
     notify(`Left the room ${room}`);
     MicVAD.destroy();
-    webSocket.close();
 });
 
 /**
