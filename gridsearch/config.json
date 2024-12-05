@@ -1,33 +1,6 @@
 {
     "grid_search": {
       "parameters": {
-        "model_type": [
-          "tiny.en",
-          "large-v3"
-        ],
-        "beam_size": [
-          3,
-          5,
-          7
-        ],
-        "context": [
-          "true",
-          "false"
-        ],
-        "confidence_score": [
-          0.6,
-          0.7,
-          0.8
-        ],
-        "tweaked_model": [
-          "true",
-          "false"
-        ],
-        "workers": [
-          1,
-          2,
-          3
-        ],
         "VAD_filter_threshold": [
           0.3,
           0.5,
