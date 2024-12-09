@@ -225,37 +225,6 @@ webrtc.addEventListener('join_room', async (e) => {
     /**
         https://github.com/ricky0123/vad  TODO: cite this
     */
-
-    let audioChunks = [];
-    const minChunkSize = 16;
-    const speechThreshold = 0.8;
-
-    MicVAD = await vad.MicVAD.new({
-        onSpeechStart: () => {
-            console.log("Speech start detected")
-        },
-        onFrameProcessed: (probabilities, audioFrame) => {
-            if (probabilities.isSpeech > speechThreshold) {
-                audioChunks.push(Array.from(new Float32Array(audioFrame)));
-
-                if (audioChunks.length >= minChunkSize) {
-                    console.log("sending audio, audioChunks length: ", audioChunks.length);
-                    sendAudioData(clientID, roomID, audioChunks);
-                    audioChunks = [];
-                }
-            }
-        },
-        onSpeechEnd: () => {
-            if (audioChunks.length > 0 && audioChunks.length < minChunkSize) {
-                console.log("end of sentence detected, sending remaining audio, audioChunks length: ", audioChunks.length);
-                sendAudioData(clientID, roomID, audioChunks);
-                audioChunks = [];
-            }
-        }
-    });
-
-
-    MicVAD.start();
 })
 
 function sendAudioData(clientID, roomID, audioChunks) {

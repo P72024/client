@@ -49,35 +49,48 @@ document.getElementById('processFileBtn').addEventListener('click', async () => 
 
 async function processFile(audioBuffer, _minChunkSize, _speechThreshold) {
     return new Promise(async (resolve, reject) => {
-        console.log(`processing file with params: minChunkSize: ${_minChunkSize}, speechThreshold: ${_speechThreshold}`);
+        console.log(`Processing file with params: minChunkSize: ${_minChunkSize}, speechThreshold: ${_speechThreshold}`);
         try {
-            // Decode audio data into an AudioBuffer
-            const audioContext = new AudioContext();
-            const decodedAudio = await audioContext.decodeAudioData(audioBuffer);
-            /**
-            https://github.com/ricky0123/vad  TODO: cite this
-            */
-            const streamDestination = audioContext.createMediaStreamDestination();
-            const source = audioContext.createBufferSource();
-            source.buffer = decodedAudio;
-            source.connect(streamDestination);
-            source.start();
-            const audioStream = streamDestination.stream;
-    
+            const audioContext = new (window.AudioContext || window.webkitAudioContext)();
+
+            // Decode the audioBuffer if it's not already an AudioBuffer
+            if (!(audioBuffer instanceof AudioBuffer)) {
+                audioBuffer = await audioContext.decodeAudioData(audioBuffer);
+            }
+
+            // Create a MediaStreamDestination for audio processing
+            const audioStreamDestination = audioContext.createMediaStreamDestination();
+
+            // Create an AudioBufferSourceNode and set its buffer
+            const sourceNode = audioContext.createBufferSource();
+            sourceNode.buffer = audioBuffer;
+
+            // Connect the source node to the MediaStream destination
+            sourceNode.connect(audioStreamDestination);
+            sourceNode.connect(audioContext.destination); // Optional: connect for playback
+
+            // The resulting MediaStream for VAD processing
+            const audioStream = audioStreamDestination.stream;
+
+            // Start playback of the audio
+            sourceNode.start(0);
+
+            // Assign the source node to renderedSource for later use
+            renderedSource = sourceNode;
+
+            // Prepare for VAD processing
             let audioChunks = [];
-            
-            
+
             const MicVAD = await vad.MicVAD.new({
-                audioStream,
+                stream: audioStream,
                 onSpeechStart: () => {
-                    // console.log("Speech start detected from source");
+                    console.log("Speech start detected");
                 },
                 onFrameProcessed: (probabilities, audioFrame) => {
                     if (probabilities.isSpeech > _speechThreshold) {
                         audioChunks.push(Array.from(new Float32Array(audioFrame)));
-    
+
                         if (audioChunks.length >= _minChunkSize) {
-                            // console.log("Processing audio, audioChunks length: ", audioChunks.length);
                             sendAudioData(`benchmark-min_chunk_size:${_minChunkSize}`, `benchmark-speech_threshold:${_speechThreshold}`, audioChunks);
                             audioChunks = [];
                         }
@@ -85,30 +98,29 @@ async function processFile(audioBuffer, _minChunkSize, _speechThreshold) {
                 },
                 onSpeechEnd: () => {
                     if (audioChunks.length > 0 && audioChunks.length < _minChunkSize) {
-                        // console.log("End of speech detected, processing remaining audio, audioChunks length: ", audioChunks.length);
                         sendAudioData(`benchmark-min_chunk_size:${_minChunkSize}`, `benchmark-speech_threshold:${_speechThreshold}`, audioChunks);
                         audioChunks = [];
                     }
                 }
-    
             });
-    
+
             console.log("Processing audio file through VAD");
-            MicVAD.start()
-    
-            source.onended = () => {
-                console.log("Audio file done playing. stopping micVAD")
-                MicVAD.destroy()
-                resolve()
-            }
-    
+            MicVAD.start();
+
+            // Handle when the audio file finishes playing
+            sourceNode.onended = () => {
+                console.log("Audio file done playing. Stopping MicVAD");
+                MicVAD.destroy();
+                resolve();
+            };
         } catch (err) {
             console.error("Error during file processing:", err);
-            reject()
+            reject(err);
         }
-    })
-    
+    });
 }
+
+
 
 
 // Helper function to check if a file exists
