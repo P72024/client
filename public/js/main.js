@@ -356,6 +356,8 @@ function initWebSocket() {
             case "kickout":
                 kickout(data)
                 break
+            case "leave":
+                userLeft(data)
             case "message":
                 message(data)
                 break
@@ -422,6 +424,7 @@ function leaveRoom(data) {
         webrtc.warn(`Left the room ${roomID}`);
 
         webrtc.room = null;
+        webrtc._isAdmin = false
         webrtc._removeUser();
         webrtc._emit('leftRoom', {
             roomId: roomID,
@@ -454,24 +457,29 @@ function kickout(data) {
         // You got kicked out
         webrtc.dispatchEvent(new Event('kicked'));
         webrtc._removeUser();
+        document.getElementById('transcriptionText').innerHTML = "";
+        document.getElementById('clientID').innerText = "";
+        document.getElementById('roomID').innerText = "";
     } else {
         // Someone else got kicked out
         webrtc._removeUser(socketId);
     }
 }
+
+function userLeft(data) {
+    const socketId = data.message
+    webrtc.log(socketId, 'Left the call.');
+    webrtc._removeUser(socketId);
+    webrtc.isInitiator = true;
+
+    webrtc._emit('userLeave', { socketId: socketId });
+    return;
+}
+
 function message(data) {
     const message = data.message.message;
     const socketId = data.message.client_id;
     webrtc.log('From', socketId, ' received:', message.type);
-    // Participant leaves
-    if (message.type === 'leave') {
-        webrtc.log(socketId, 'Left the call.');
-        webrtc._removeUser(socketId);
-        webrtc.isInitiator = true;
-
-        webrtc._emit('userLeave', { socketId: socketId });
-        return;
-    }
 
     // Avoid dublicate connections
     if (
@@ -484,6 +492,12 @@ function message(data) {
             'is already established'
         );
         return;
+    }
+    else if (socketId == webrtc.myId) {
+        webrtc.log(
+            'Trying to connect to themselves',
+            socketId,
+        )
     }
 
     switch (message.type) {
@@ -579,6 +593,11 @@ window.onbeforeunload = reset;
 function reset() {
     MicVAD.destroy();
     pingTimer && clearInterval(pingTimer);
+    webSocket.send(JSON.stringify({
+        "roomId": webrtc.roomId,
+        "clientId": webrtc.myId,
+        "type": "disconnecting"
+    }))
     webSocket.close();
     webrtc.leaveRoom();
 }
