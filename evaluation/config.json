@@ -2,13 +2,22 @@
   "grid_search": {
     "parameters": {
       "VAD_filter_threshold": [
-        0.75
+        0.3,
+        0.4,
+        0.5,
+        0.6,
+        0.7,
+        0.8,
+        0.9
       ],
       "min_chunk_size": [
         8,
-        12,
         16,
+        24,
         32,
+        40,
+        48,
+        56,
         64
       ]
     }
