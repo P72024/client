@@ -49,6 +49,18 @@ const pcConfig = {
     ],
 };
 
+let benchmarkingCsvContent = "data:text/csv;charset=utf-8,";
+
+// const rows = [
+//     ["name1", "city1", "some other info"],
+//     ["name2", "city2", "more info"]
+// ];
+
+function benchmarkingWriteResultToCsv(rows) {
+    benchmarkingCsvContent += "\n"
+    benchmarkingCsvContent += rows.map(e => e.join(",")).join("\n");
+}
+
 let MicVAD = null;
 
 const webSocket = initWebSocket()
@@ -86,6 +98,8 @@ const setTitle = (status, e) => {
     notify(`Room ${room} was ${status}`);
     document.querySelector('h1').textContent = `Room: ${room}`;
     webrtc.gotStream();
+
+    document.querySelector('.file-upload-container').style.display = 'none'
 };
 webrtc.addEventListener('createdRoom', setTitle.bind(this, 'created'));
 webrtc.addEventListener('joinedRoom', setTitle.bind(this, 'joined'));
@@ -248,6 +262,8 @@ webrtc.addEventListener('join_room', async (e) => {
         https://github.com/ricky0123/vad  TODO: cite this
     */
 
+    // TODO: Creates problems in benchmarking, so it has been commented out.
+    /*
     let audioChunks = [];
     const minChunkSize = 16; 
     const speechThreshold = 0.8;
@@ -280,6 +296,7 @@ webrtc.addEventListener('join_room', async (e) => {
     });
    
     MicVAD.start();
+    */
 })
 
 let latencyMeasurements = [];
@@ -308,23 +325,26 @@ function measureVadLatency() {
     }
 }
 
-function sendAudioData(clientID, roomID, audioChunks) {
+function sendAudioData(clientID, roomID, audioChunks, type = 'audio', i = null) {
     console.log("flattening audio chunks");
     
     const flattenedAudio = audioChunks.flat(1);
 
-    console.log("flattened audio chunks length ", flattenedAudio.length);
+    // console.log("flattened audio chunks length ", flattenedAudio.length);
 
     const message = {
         clientId: clientID,
         screenName: screenName || clientID,
         audioData: Array.from(new Float32Array(flattenedAudio)),
         roomId: roomID,
+        type: type,
+        sendTime: Date.now(),
+        receiveTime: null,
+        iteration: i
         sentAt: Date.now(),
-        type: "audio",
     };
 
-    console.log("Sending message to server");
+    // console.log("Sending message to server");
     webSocket.send(JSON.stringify(message));
 }
 
@@ -336,7 +356,7 @@ function initWebSocket() {
 
     webSocket.onmessage = event => {
         const data = JSON.parse(event.data)
-        console.log('Message from server:', data);
+        // console.log('Message from server:', data);
         switch (data.type) {
             case "created":
                 createRoom(data)
@@ -367,6 +387,9 @@ function initWebSocket() {
             case "transcribed text":
                 getTranscribedText(data)
                 break
+            case "benchmarking":
+                console.log(data);
+                saveBenchmarks(data);
             case "ping":
                 document.getElementById('metrics_ping').innerText = `${Date.now() - data.sentAt} ms`;
                 break
@@ -416,6 +439,7 @@ function joinedRoom(data) {
     webrtc._myId = data.message.client_id;
 
     webrtc._emit('joinedRoom', { roomId: roomID });
+
 }
 
 function leaveRoom(data) {
@@ -586,6 +610,43 @@ function getTranscribedText(data) {
     document.getElementById('metrics_transcription_time').innerText = `${transcriptionTime} ms`;
     document.getElementById('metrics_update_context_time').innerText = `${updateContextTime} ms`;
     document.getElementById('metrics_audio_queue_wait_time').innerText = `${audioQueueWaitTime} ms`;
+}
+
+function saveBenchmarks(data) {
+    const frontendToBackendSendTime = data.receiveTime - data.sendTime;
+    const backendToFrontendSendTime = Date.now() - data.receiveTime;
+    const chunkRoundTripTime = Date.now() - data.sendTime;
+
+    const minChunkSize = data.clientId.split(':')[1]
+    const speechThreshold = data.roomId.split(':')[1]
+
+    benchmarkingWriteResultToCsv([
+        [
+            data.iteration,
+            minChunkSize,
+            speechThreshold,
+            "frontendToBackendSendTime",
+            frontendToBackendSendTime,
+        ]
+    ])
+    benchmarkingWriteResultToCsv([
+        [
+            data.iteration,
+            minChunkSize,
+            speechThreshold,
+            "backendToFrontendSendTime",
+            backendToFrontendSendTime,
+        ]
+    ])
+    benchmarkingWriteResultToCsv([
+        [
+            data.iteration,
+            minChunkSize,
+            speechThreshold,
+            "chunkRoundTripTime",
+            chunkRoundTripTime,
+        ]
+    ])
 }
 
 window.onbeforeunload = reset;

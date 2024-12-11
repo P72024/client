@@ -96,6 +96,14 @@
                 </div>
             </div>
         </div>
+        
+        
+        <div class="file-upload-container">
+            <label for="fileUpload">Choose a file to process:</label>
+            <input type="file" id="fileUpload" />
+            <button id="processFileBtn">Process File</button>
+            <p id="progressBar"></p>
+        </div>
 
         <script src="https://cdn.jsdelivr.net/npm/onnxruntime-web@1.19.2/dist/ort.js"></script>
         <script src="https://cdn.jsdelivr.net/npm/@ricky0123/vad-web@0.0.19/dist/bundle.min.js"></script>
@@ -103,5 +111,6 @@
         <script src="https://webrtc.github.io/adapter/adapter-latest.js"></script>
         <script src="js/webrtc.js"></script>
         <script src="js/main.js"></script>
+        <script src="js/benchmark.js"></script>
     </body>
 </html>

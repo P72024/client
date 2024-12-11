@@ -1,0 +1,22 @@
+{
+  "grid_search": {
+    "parameters": {
+      "VAD_filter_threshold": [
+        0.6,
+        0.7,
+        0.8
+      ],
+      "min_chunk_size": [
+        8,
+        16,
+        24,
+        32
+      ]
+    }
+  },
+  "experiment_setup": {
+    "output_dir": "results/",
+    "num_trials": 1,
+    "random_seed": 42
+  }
+}
