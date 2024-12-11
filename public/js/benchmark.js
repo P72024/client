@@ -73,10 +73,8 @@ async function processFile(audioBuffer, _minChunkSize, _speechThreshold) {
             const audioStream = audioStreamDestination.stream;
 
             // Start playback of the audio
-            sourceNode.start(0);
+            
 
-            // Assign the source node to renderedSource for later use
-            renderedSource = sourceNode;
 
             // Prepare for VAD processing
             let audioChunks = [];
@@ -87,11 +85,15 @@ async function processFile(audioBuffer, _minChunkSize, _speechThreshold) {
                     console.log("Speech start detected");
                 },
                 onFrameProcessed: (probabilities, audioFrame) => {
+                    // vadfilet test stop
+
                     if (probabilities.isSpeech > _speechThreshold) {
                         audioChunks.push(Array.from(new Float32Array(audioFrame)));
 
                         if (audioChunks.length >= _minChunkSize) {
+                            //chunk timer stop
                             sendAudioData(`benchmark-min_chunk_size:${_minChunkSize}`, `benchmark-speech_threshold:${_speechThreshold}`, audioChunks);
+                            // chunk timer start
                             audioChunks = [];
                         }
                     }
@@ -105,7 +107,12 @@ async function processFile(audioBuffer, _minChunkSize, _speechThreshold) {
             });
 
             console.log("Processing audio file through VAD");
+            
             MicVAD.start();
+            sourceNode.start(0);
+            // global timer start.
+            // vad filter test start
+            
 
             // Handle when the audio file finishes playing
             sourceNode.onended = () => {
