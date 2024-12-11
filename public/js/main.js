@@ -340,7 +340,7 @@ function sendAudioData(clientID, roomID, audioChunks, type = 'audio', i = null) 
         type: type,
         sendTime: Date.now(),
         receiveTime: null,
-        iteration: i
+        iteration: i,
         sentAt: Date.now(),
     };
 
