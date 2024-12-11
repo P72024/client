@@ -9,6 +9,11 @@ document.getElementById('processFileBtn').addEventListener('click', async () => 
     const fileInput = document.getElementById('fileUpload');
     const file = fileInput.files[0];
 
+    // Setting the csv header
+    benchmarkingWriteResultToCsv([
+        ["min_chunk_size", "speech_threshold", "timer_type", "timer_value"]
+    ])
+
     if (file) {
         fileInput.disabled = true
         const reader = new FileReader();
@@ -35,8 +40,11 @@ document.getElementById('processFileBtn').addEventListener('click', async () => 
                 fileInput.disabled = false
                 document.getElementById('joinBtn').style.backgroundColor = "#4caf50;"
                 document.getElementById("progressBar").textContent = "WE DONE BOIS!"
-
-
+                
+                // save the csv file on local pc
+                var encodedUri = encodeURI(csvContent);
+                window.open(encodedUri);
+                
             } catch (err) {
                 console.error('Error processing file:', err);
             }
@@ -70,14 +78,13 @@ async function processFile(audioBuffer, _minChunkSize, _speechThreshold) {
             sourceNode.connect(audioContext.destination); // Optional: connect for playback
 
             // The resulting MediaStream for VAD processing
-            const audioStream = audioStreamDestination.stream;
-
-            // Start playback of the audio
-            
-
+            const audioStream = audioStreamDestination.stream;            
 
             // Prepare for VAD processing
             let audioChunks = [];
+
+            let vadTimer;
+            let chunkTimer;
 
             const MicVAD = await vad.MicVAD.new({
                 stream: audioStream,
@@ -86,21 +93,49 @@ async function processFile(audioBuffer, _minChunkSize, _speechThreshold) {
                 },
                 onFrameProcessed: (probabilities, audioFrame) => {
                     // vadfilet test stop
+                    if (vadTimer) {
+                        console.log("VAD filter test done");
+                        console.log(`Time taken for VAD filter test: ${performance.now() - vadTimer}ms`);
+                        benchmarkingWriteResultToCsv([
+                            [
+                                _minChunkSize,
+                                _speechThreshold,
+                                "VADFilterTime",
+                                performance.now() - vadTimer
+                            ]
+                        ])
+                        vadTimer = null;
+                    }
 
                     if (probabilities.isSpeech > _speechThreshold) {
                         audioChunks.push(Array.from(new Float32Array(audioFrame)));
 
                         if (audioChunks.length >= _minChunkSize) {
                             //chunk timer stop
-                            sendAudioData(`benchmark-min_chunk_size:${_minChunkSize}`, `benchmark-speech_threshold:${_speechThreshold}`, audioChunks);
+                            if (chunkTimer) {
+                                console.log(`Time taken for chunk: ${performance.now() - chunkTimer}ms`);
+                                benchmarkingWriteResultToCsv([
+                                    [
+                                        _minChunkSize,
+                                        _speechThreshold,
+                                        "chunkProcessTime",
+                                        performance.now() - chunkTimer
+                                    ]
+                                ])
+                                chunkTimer = null;
+                            }
+
+                            sendAudioData(`benchmark-min_chunk_size:${_minChunkSize}`, `benchmark-speech_threshold:${_speechThreshold}`, audioChunks, "benchmarking");
+
                             // chunk timer start
                             audioChunks = [];
+                            chunkTimer = performance.now();
                         }
                     }
                 },
                 onSpeechEnd: () => {
                     if (audioChunks.length > 0 && audioChunks.length < _minChunkSize) {
-                        sendAudioData(`benchmark-min_chunk_size:${_minChunkSize}`, `benchmark-speech_threshold:${_speechThreshold}`, audioChunks);
+                        sendAudioData(`benchmark-min_chunk_size:${_minChunkSize}`, `benchmark-speech_threshold:${_speechThreshold}`, audioChunks, "benchmarking");
                         audioChunks = [];
                     }
                 }
@@ -109,10 +144,11 @@ async function processFile(audioBuffer, _minChunkSize, _speechThreshold) {
             console.log("Processing audio file through VAD");
             
             MicVAD.start();
+            // Start playback of the audio
             sourceNode.start(0);
-            // global timer start.
-            // vad filter test start
-            
+
+            // vad filter test start.
+            vadTimer = performance.now();
 
             // Handle when the audio file finishes playing
             sourceNode.onended = () => {
@@ -126,9 +162,6 @@ async function processFile(audioBuffer, _minChunkSize, _speechThreshold) {
         }
     });
 }
-
-
-
 
 // Helper function to check if a file exists
 async function fileExists(filePath) {

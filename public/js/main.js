@@ -36,6 +36,17 @@ const pcConfig = {
     ],
 };
 
+let benchmarkingCsvContent = "data:text/csv;charset=utf-8,";
+
+// const rows = [
+//     ["name1", "city1", "some other info"],
+//     ["name2", "city2", "more info"]
+// ];
+
+function benchmarkingWriteResultToCsv(rows) {
+    benchmarkingCsvContent += rows.map(e => e.join(",")).join("\n");
+}
+
 let MicVAD = null;
 
 const webSocket = initWebSocket()
@@ -227,7 +238,7 @@ webrtc.addEventListener('join_room', async (e) => {
     */
 })
 
-function sendAudioData(clientID, roomID, audioChunks) {
+function sendAudioData(clientID, roomID, audioChunks, type) {
     // console.log("flattening audio chunks");
     
     const flattenedAudio = audioChunks.flat(1);
@@ -238,7 +249,9 @@ function sendAudioData(clientID, roomID, audioChunks) {
         clientId: clientID,
         audioData: Array.from(new Float32Array(flattenedAudio)),
         roomId: roomID,
-        type: "audio"
+        type: type,
+        sendTime: performance.now(),
+        receiveTime: null
     };
 
     // console.log("Sending message to server");
@@ -278,6 +291,9 @@ function initWebSocket() {
                 break
             case "transcribed text":
                 getTranscribedText(data)
+                break
+            case "benchmarking":
+                saveBenchmarks(data);
                 break
             default:
                 console.log("Incorrect type on message: ", data)
@@ -436,6 +452,36 @@ function getTranscribedText(data) {
     else {
         console.log("No element with id: transcriptionText")
     }
+}
+
+function saveBenchmarks(data) {
+    const frontendToBackendSendTime = data.receiveTime - data.sendTime;
+    const backendToFrontendSendTime = performance.now() - data.receiveTime;
+    const chunkRoundTripTime = performance.now() - data.sendTime;
+
+    const minChunkSize = data.clientId.split(':')[1]
+    const speechThreshold = data.roomId.split(':')[1]
+
+    benchmarkingWriteResultToCsv([
+        [
+            minChunkSize,
+            speechThreshold,
+            "frontendToBackendSendTime",
+            frontendToBackendSendTime,
+        ],
+        [
+            minChunkSize,
+            speechThreshold,
+            "backendToFrontendSendTime",
+            backendToFrontendSendTime,
+        ],
+        [
+            minChunkSize,
+            speechThreshold,
+            "chunkRoundTripTime",
+            chunkRoundTripTime,
+        ]
+    ])
 }
 
 window.onbeforeunload = function() {
