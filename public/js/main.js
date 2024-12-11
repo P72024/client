@@ -44,6 +44,7 @@ let benchmarkingCsvContent = "data:text/csv;charset=utf-8,";
 // ];
 
 function benchmarkingWriteResultToCsv(rows) {
+    benchmarkingCsvContent += "\n"
     benchmarkingCsvContent += rows.map(e => e.join(",")).join("\n");
 }
 
@@ -238,7 +239,7 @@ webrtc.addEventListener('join_room', async (e) => {
     */
 })
 
-function sendAudioData(clientID, roomID, audioChunks, type) {
+function sendAudioData(clientID, roomID, audioChunks, type, i) {
     // console.log("flattening audio chunks");
     
     const flattenedAudio = audioChunks.flat(1);
@@ -250,8 +251,9 @@ function sendAudioData(clientID, roomID, audioChunks, type) {
         audioData: Array.from(new Float32Array(flattenedAudio)),
         roomId: roomID,
         type: type,
-        sendTime: performance.now(),
-        receiveTime: null
+        sendTime: Date.now(),
+        receiveTime: null,
+        iteration: i
     };
 
     // console.log("Sending message to server");
@@ -263,7 +265,7 @@ function initWebSocket() {
 
     webSocket.onmessage = event => {
         const data = JSON.parse(event.data)
-        console.log('Message from server:', data);
+        // console.log('Message from server:', data);
         switch (data.type) {
             case "created":
                 createRoom(data)
@@ -293,6 +295,7 @@ function initWebSocket() {
                 getTranscribedText(data)
                 break
             case "benchmarking":
+                console.log(data);
                 saveBenchmarks(data);
                 break
             default:
@@ -456,26 +459,33 @@ function getTranscribedText(data) {
 
 function saveBenchmarks(data) {
     const frontendToBackendSendTime = data.receiveTime - data.sendTime;
-    const backendToFrontendSendTime = performance.now() - data.receiveTime;
-    const chunkRoundTripTime = performance.now() - data.sendTime;
+    const backendToFrontendSendTime = Date.now() - data.receiveTime;
+    const chunkRoundTripTime = Date.now() - data.sendTime;
 
     const minChunkSize = data.clientId.split(':')[1]
     const speechThreshold = data.roomId.split(':')[1]
 
     benchmarkingWriteResultToCsv([
         [
+            data.iteration,
             minChunkSize,
             speechThreshold,
             "frontendToBackendSendTime",
             frontendToBackendSendTime,
-        ],
+        ]
+    ])
+    benchmarkingWriteResultToCsv([
         [
+            data.iteration,
             minChunkSize,
             speechThreshold,
             "backendToFrontendSendTime",
             backendToFrontendSendTime,
-        ],
+        ]
+    ])
+    benchmarkingWriteResultToCsv([
         [
+            data.iteration,
             minChunkSize,
             speechThreshold,
             "chunkRoundTripTime",

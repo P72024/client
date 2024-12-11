@@ -11,8 +11,10 @@ document.getElementById('processFileBtn').addEventListener('click', async () => 
 
     // Setting the csv header
     benchmarkingWriteResultToCsv([
-        ["min_chunk_size", "speech_threshold", "timer_type", "timer_value"]
+        ["i", "min_chunk_size", "speech_threshold", "timer_type", "timer_value"]
     ])
+
+    const ITERATION_COUNT = 10
 
     if (file) {
         fileInput.disabled = true
@@ -26,13 +28,16 @@ document.getElementById('processFileBtn').addEventListener('click', async () => 
             try {
                 max_counter = minChunkSizeArray.length * speechThresholdArray.length
                 counter = 0
-                document.getElementById("progressBar").textContent = `processing file... progess: ${counter} of ${max_counter}`
+                document.getElementById("progressBar").textContent = `processing file... iteration no: ${ITERATION_COUNT}, progress: ${counter} of ${max_counter}, total progress: ${max_counter * ITERATION_COUNT}`
                 for await (const minChunkSize of minChunkSizeArray) {
                     for (const speechThreshold of speechThresholdArray) {
-                        await processFile(audioBuffer.slice(0), minChunkSize, speechThreshold).then(() => {
-                            counter++
-                            document.getElementById("progressBar").textContent = `processing file... progress: ${counter} of ${max_counter}`
-                        })
+                        for (let i = 1; i <= ITERATION_COUNT; i++) {
+                            await processFile(audioBuffer.slice(0), minChunkSize, speechThreshold, i).then(() => {
+                                counter++
+                                document.getElementById("progressBar").textContent = `processing file... progress: ${counter} of ${max_counter}, iteration no: ${i} of ${ITERATION_COUNT}`
+                            })
+                        }
+                        counter = 0
                     }
                 }
                 document.getElementById('processFileBtn').disabled = false
@@ -42,7 +47,7 @@ document.getElementById('processFileBtn').addEventListener('click', async () => 
                 document.getElementById("progressBar").textContent = "WE DONE BOIS!"
                 
                 // save the csv file on local pc
-                var encodedUri = encodeURI(csvContent);
+                var encodedUri = encodeURI(benchmarkingCsvContent);
                 window.open(encodedUri);
                 
             } catch (err) {
@@ -55,7 +60,7 @@ document.getElementById('processFileBtn').addEventListener('click', async () => 
     }
 });
 
-async function processFile(audioBuffer, _minChunkSize, _speechThreshold) {
+async function processFile(audioBuffer, _minChunkSize, _speechThreshold, i) {
     return new Promise(async (resolve, reject) => {
         console.log(`Processing file with params: minChunkSize: ${_minChunkSize}, speechThreshold: ${_speechThreshold}`);
         try {
@@ -98,6 +103,7 @@ async function processFile(audioBuffer, _minChunkSize, _speechThreshold) {
                         console.log(`Time taken for VAD filter test: ${performance.now() - vadTimer}ms`);
                         benchmarkingWriteResultToCsv([
                             [
+                                i,
                                 _minChunkSize,
                                 _speechThreshold,
                                 "VADFilterTime",
@@ -116,16 +122,17 @@ async function processFile(audioBuffer, _minChunkSize, _speechThreshold) {
                                 console.log(`Time taken for chunk: ${performance.now() - chunkTimer}ms`);
                                 benchmarkingWriteResultToCsv([
                                     [
+                                        i,
                                         _minChunkSize,
                                         _speechThreshold,
                                         "chunkProcessTime",
-                                        performance.now() - chunkTimer
+                                        performance.now() - chunkTimer,
                                     ]
                                 ])
                                 chunkTimer = null;
                             }
 
-                            sendAudioData(`benchmark-min_chunk_size:${_minChunkSize}`, `benchmark-speech_threshold:${_speechThreshold}`, audioChunks, "benchmarking");
+                            sendAudioData(`benchmark-min_chunk_size:${_minChunkSize}`, `benchmark-speech_threshold:${_speechThreshold}`, audioChunks, "benchmarking", i);
 
                             // chunk timer start
                             audioChunks = [];
@@ -135,7 +142,7 @@ async function processFile(audioBuffer, _minChunkSize, _speechThreshold) {
                 },
                 onSpeechEnd: () => {
                     if (audioChunks.length > 0 && audioChunks.length < _minChunkSize) {
-                        sendAudioData(`benchmark-min_chunk_size:${_minChunkSize}`, `benchmark-speech_threshold:${_speechThreshold}`, audioChunks, "benchmarking");
+                        sendAudioData(`benchmark-min_chunk_size:${_minChunkSize}`, `benchmark-speech_threshold:${_speechThreshold}`, audioChunks, "benchmarking", i);
                         audioChunks = [];
                     }
                 }
