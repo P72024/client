@@ -101,6 +101,18 @@
         <div class="file-upload-container">
             <label for="fileUpload">Choose a file to process:</label>
             <input type="file" id="fileUpload" />
+
+            <label for="benchmarking_types">Benchmarking type:</label>
+            <select name="benchmarking_types" id="benchmarking_types">
+                <option value="benchmarking">Latency</option>
+                <option value="audio">Create .pkl files</option>
+            </select>
+
+            <div id="benchmarking_iterations_container">
+                <label for="benchmarking_iterations">Number of iterations:</label>
+                <input type="number" id="benchmarking_iterations" placeholder="iterations" value="10" />
+            </div>
+
             <button id="processFileBtn">Process File</button>
             <p id="progressBar"></p>
         </div>
