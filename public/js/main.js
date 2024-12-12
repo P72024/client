@@ -56,9 +56,25 @@ let benchmarkingCsvContent = "data:text/csv;charset=utf-8,";
 //     ["name2", "city2", "more info"]
 // ];
 
+let benchmarkingCsvRows = []; // Use an array for rows
+
 function benchmarkingWriteResultToCsv(rows) {
-    benchmarkingCsvContent += "\n"
-    benchmarkingCsvContent += rows.map(e => e.join(",")).join("\n");
+    benchmarkingCsvRows.push(...rows.map(e => e.join(","))); // Append rows to the array
+}
+
+function saveCsv() {
+    let csvContent = benchmarkingCsvRows.join("\n"); // Join all rows into a single string
+    let blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+
+    let link = document.createElement('a');
+    let url = URL.createObjectURL(blob);
+    link.setAttribute('href', url);
+    link.setAttribute('download', 'benchmarking_output.csv');
+    link.style.visibility = 'hidden';
+
+    document.body.appendChild(link);
+    link.click();
+    document.body.removeChild(link);
 }
 
 let MicVAD = null;

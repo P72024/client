@@ -28,13 +28,13 @@ document.getElementById('processFileBtn').addEventListener('click', async () => 
             try {
                 max_counter = minChunkSizeArray.length * speechThresholdArray.length
                 counter = 0
-                document.getElementById("progressBar").textContent = `processing file... iteration no: ${ITERATION_COUNT}, progress: ${counter} of ${max_counter}, total progress: ${max_counter * ITERATION_COUNT}`
+                document.getElementById("progressBar").textContent = `processing file... iteration no: ${ITERATION_COUNT}, progress: ${counter}/${max_counter}, total progress: ${max_counter * ITERATION_COUNT}`
                 for await (const minChunkSize of minChunkSizeArray) {
                     for (const speechThreshold of speechThresholdArray) {
-                        for (let i = 1; i <= ITERATION_COUNT; i++) {
+                        for (let i = 0; i < ITERATION_COUNT; i++) {
                             await processFile(audioBuffer.slice(0), minChunkSize, speechThreshold, i).then(() => {
                                 counter++
-                                document.getElementById("progressBar").textContent = `processing file... progress: ${counter} of ${max_counter}, iteration no: ${i} of ${ITERATION_COUNT}`
+                                document.getElementById("progressBar").textContent = `processing file... progress: ${counter}/${max_counter}, iteration no: ${i}/${ITERATION_COUNT}, total progress: ${i * max_counter + counter}/${max_counter * ITERATION_COUNT}`
                             })
                         }
                         counter = 0
@@ -46,9 +46,11 @@ document.getElementById('processFileBtn').addEventListener('click', async () => 
                 document.getElementById('joinBtn').style.backgroundColor = "#4caf50;"
                 document.getElementById("progressBar").textContent = "WE DONE BOIS!"
                 
-                // save the csv file on local pc
-                var encodedUri = encodeURI(benchmarkingCsvContent);
-                window.open(encodedUri);
+                // // save the csv file on local pc
+                // var encodedUri = encodeURI(benchmarkingCsvContent);
+                // window.open(encodedUri);
+
+                saveCsv();
                 
             } catch (err) {
                 console.error('Error processing file:', err);
