@@ -1,3 +1,10 @@
+document.getElementById('benchmarking_types').addEventListener('change', async (e) => {        
+    const benchmarkingType = document.getElementById('benchmarking_types').value;
+    const benchmarkingIterationsContainer = document.getElementById('benchmarking_iterations_container');
+
+    benchmarkingIterationsContainer.style.display = benchmarkingType === 'benchmarking' ? 'block' : 'none';
+});
+
 document.getElementById('processFileBtn').addEventListener('click', async () => {
     const {minChunkSizeArray, speechThresholdArray} = await fetchConfig()
 
@@ -14,7 +21,8 @@ document.getElementById('processFileBtn').addEventListener('click', async () => 
         ["i", "min_chunk_size", "speech_threshold", "timer_type", "timer_value"]
     ])
 
-    const ITERATION_COUNT = 10
+    const ITERATION_COUNT = document.getElementById('benchmarking_iterations').value    
+    const benchmarkingType = document.getElementById('benchmarking_types').value; // latency test or pkl test
 
     if (file) {
         fileInput.disabled = true
@@ -31,8 +39,8 @@ document.getElementById('processFileBtn').addEventListener('click', async () => 
                 document.getElementById("progressBar").textContent = `processing file... iteration no: ${ITERATION_COUNT}, progress: ${counter}/${max_counter}, total progress: ${max_counter * ITERATION_COUNT}`
                 for await (const minChunkSize of minChunkSizeArray) {
                     for (const speechThreshold of speechThresholdArray) {
-                        for (let i = 0; i < ITERATION_COUNT; i++) {
-                            await processFile(audioBuffer.slice(0), minChunkSize, speechThreshold, i).then(() => {
+                        for (let i = 1; i <= ITERATION_COUNT; i++) {
+                            await processFile(audioBuffer.slice(0), minChunkSize, speechThreshold, i, benchmarkingType).then(() => {
                                 counter++
                                 document.getElementById("progressBar").textContent = `processing file... progress: ${counter}/${max_counter}, iteration no: ${i}/${ITERATION_COUNT}, total progress: ${i * max_counter + counter}/${max_counter * ITERATION_COUNT}`
                             })
@@ -62,7 +70,7 @@ document.getElementById('processFileBtn').addEventListener('click', async () => 
     }
 });
 
-async function processFile(audioBuffer, _minChunkSize, _speechThreshold, i) {
+async function processFile(audioBuffer, _minChunkSize, _speechThreshold, i, benchmarkingType) {
     return new Promise(async (resolve, reject) => {
         console.log(`Processing file with params: minChunkSize: ${_minChunkSize}, speechThreshold: ${_speechThreshold}`);
         try {
@@ -134,7 +142,7 @@ async function processFile(audioBuffer, _minChunkSize, _speechThreshold, i) {
                                 chunkTimer = null;
                             }
 
-                            sendAudioData(`benchmark-min_chunk_size:${_minChunkSize}`, `benchmark-speech_threshold:${_speechThreshold}`, audioChunks, "benchmarking", i);
+                            sendAudioData(`benchmark-min_chunk_size:${_minChunkSize}`, `benchmark-speech_threshold:${_speechThreshold}`, audioChunks, benchmarkingType, i);
 
                             // chunk timer start
                             audioChunks = [];
@@ -144,7 +152,7 @@ async function processFile(audioBuffer, _minChunkSize, _speechThreshold, i) {
                 },
                 onSpeechEnd: () => {
                     if (audioChunks.length > 0 && audioChunks.length < _minChunkSize) {
-                        sendAudioData(`benchmark-min_chunk_size:${_minChunkSize}`, `benchmark-speech_threshold:${_speechThreshold}`, audioChunks, "benchmarking", i);
+                        sendAudioData(`benchmark-min_chunk_size:${_minChunkSize}`, `benchmark-speech_threshold:${_speechThreshold}`, audioChunks, benchmarkingType, i);
                         audioChunks = [];
                     }
                 }
